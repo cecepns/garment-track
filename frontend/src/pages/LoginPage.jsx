@@ -38,7 +38,7 @@ export const LoginPage = () => {
           Garment<span className="text-indigo-600">Track</span>
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Sistem Manajemen & Pelacakan Produksi Garment Berbasis Alur Ekspedisi
+          Sistem Manajemen & Pelacakan Produksi Garment
         </p>
       </div>
 
@@ -110,11 +110,10 @@ export const LoginPage = () => {
                     setUsername(demo.user);
                     setPassword("password123");
                   }}
-                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
-                    username === demo.user
+                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${username === demo.user
                       ? "bg-indigo-50 border-indigo-300 text-indigo-900"
                       : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
+                    }`}
                 >
                   <p className="text-xs font-bold truncate">{demo.label}</p>
                   <p className="text-[10px] text-slate-500 truncate">{demo.desc}</p>

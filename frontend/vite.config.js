@@ -13,7 +13,7 @@ export default defineConfig({
       manifest: {
         name: "Garment Production Tracking System",
         short_name: "GarmentTrack",
-        description: "Sistem Manajemen & Tracking Produksi Garment Berbasis Alur Ekspedisi",
+        description: "Sistem Manajemen & Tracking Produksi Garment",
         theme_color: "#0f172a",
         background_color: "#f8fafc",
         display: "standalone",
