@@ -14,13 +14,12 @@ export const MobileNavigation = ({ onOpenScanner }) => {
         <NavLink
           to="/"
           className={({ isActive }) =>
-            `flex flex-col items-center py-1 px-3 text-xs font-bold transition-colors ${
-              isActive ? "text-[#EE4D2D]" : "text-slate-500 hover:text-slate-800"
+            `flex flex-col items-center py-1 px-3 text-xs font-bold transition-colors ${isActive ? "text-[#EE4D2D]" : "text-slate-500 hover:text-slate-800"
             }`
           }
         >
           <LayoutDashboard className="w-6 h-6 mb-1" />
-          <span>Tugas SPX</span>
+          <span>Tugas</span>
         </NavLink>
 
         {/* Center Prominent Scan Button */}
@@ -37,8 +36,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
         <NavLink
           to="/scan"
           className={({ isActive }) =>
-            `flex flex-col items-center py-1 px-3 text-xs font-bold transition-colors ${
-              isActive ? "text-[#EE4D2D]" : "text-slate-500 hover:text-slate-800"
+            `flex flex-col items-center py-1 px-3 text-xs font-bold transition-colors ${isActive ? "text-[#EE4D2D]" : "text-slate-500 hover:text-slate-800"
             }`
           }
         >
@@ -55,8 +53,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
       <NavLink
         to="/"
         className={({ isActive }) =>
-          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${
-            isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
+          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
           }`
         }
       >
@@ -67,8 +64,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
       <NavLink
         to="/orders"
         className={({ isActive }) =>
-          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${
-            isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
+          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
           }`
         }
       >
@@ -90,8 +86,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
       <NavLink
         to="/handovers"
         className={({ isActive }) =>
-          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${
-            isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
+          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
           }`
         }
       >
@@ -102,8 +97,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
       <NavLink
         to="/qc"
         className={({ isActive }) =>
-          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${
-            isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
+          `flex flex-col items-center py-1 px-2 text-[10px] font-semibold transition-colors ${isActive ? "text-indigo-600" : "text-slate-500 hover:text-slate-800"
           }`
         }
       >
