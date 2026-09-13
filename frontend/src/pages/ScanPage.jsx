@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { HandoverModal } from "@/components/orders/HandoverModal";
 import { QCModal } from "@/components/orders/QCModal";
+import { playScanSound } from "@/utils/audio";
 import toast from "react-hot-toast";
 
 export const ScanPage = () => {
@@ -49,6 +50,7 @@ export const ScanPage = () => {
     try {
       const res = await request.get(API_ENDPOINTS.ORDERS.SCAN(code));
       if (res.success && res.data) {
+        playScanSound();
         setOrder(res.data);
       }
     } catch (err) {

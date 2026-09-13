@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, Upload, AlertCircle, RefreshCw } from "lucide-react";
+import { playScanSound } from "@/utils/audio";
 import toast from "react-hot-toast";
 
 export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
@@ -30,6 +31,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
               qrbox: { width: 250, height: 250 },
             },
             (decodedText) => {
+              playScanSound();
               toast.success(`Barcode terdeteksi: ${decodedText}`);
               stopScanner();
               onScanSuccess(decodedText);
@@ -72,6 +74,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       toast.error("Masukkan kode pesanan / barcode");
       return;
     }
+    playScanSound();
     stopScanner();
     onScanSuccess(manualInput.trim());
   };
@@ -83,6 +86,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
     try {
       const html5QrCode = new Html5Qrcode("qr-file-region");
       const decoded = await html5QrCode.scanFile(file, true);
+      playScanSound();
       toast.success(`Berhasil memindai file QR: ${decoded}`);
       stopScanner();
       onScanSuccess(decoded);
@@ -90,6 +94,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       toast.error("Tidak dapat membaca QR code dari gambar tersebut");
     }
   };
+
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Scan Barcode / QR Produksi" maxWidth="max-w-md">

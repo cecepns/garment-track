@@ -17,25 +17,30 @@ import { useAuth } from "@/context/AuthContext";
 export const Sidebar = ({ isOpen, onClose, isCollapsed }) => {
   const { user } = useAuth();
   const role = user?.role || "admin";
+  const isPicRole = ["cutting", "sewing", "finishing", "qc", "packing"].includes(role);
   const isOwnerOrAdmin = role === "owner" || role === "admin";
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["all"] },
-    { name: "Pesanan Produksi", href: "/orders", icon: Layers, roles: ["all"] },
-    { name: "Serah Terima (Transit)", href: "/handovers", icon: ArrowLeftRight, roles: ["all"] },
-    { name: "QC & Rework", href: "/qc", icon: ShieldCheck, roles: ["all"] },
-    { name: "Scan Barcode / QR", href: "/scan", icon: QrCode, roles: ["all"] },
-    ...(isOwnerOrAdmin
-      ? [
-          { header: "Master Data" },
-          { name: "Produk Pakaian", href: "/products", icon: Shirt, roles: ["owner", "admin"] },
-          { name: "Pelanggan / Klien", href: "/customers", icon: Contact, roles: ["owner", "admin"] },
-          { name: "Pengguna & PIC", href: "/users", icon: Users, roles: ["owner", "admin"] },
-          { header: "Laporan" },
-          { name: "Laporan & Produktivitas", href: "/reports", icon: FileBarChart2, roles: ["owner", "admin"] },
-        ]
-      : []),
-  ];
+  const navigation = isOwnerOrAdmin
+    ? [
+        { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["all"] },
+        { name: "Pesanan Produksi", href: "/orders", icon: Layers, roles: ["all"] },
+        { name: "Serah Terima (Transit)", href: "/handovers", icon: ArrowLeftRight, roles: ["all"] },
+        { name: "QC & Rework", href: "/qc", icon: ShieldCheck, roles: ["all"] },
+        { name: "Scan Barcode / QR", href: "/scan", icon: QrCode, roles: ["all"] },
+        { header: "Master Data" },
+        { name: "Produk Pakaian", href: "/products", icon: Shirt, roles: ["owner", "admin"] },
+        { name: "Pelanggan / Klien", href: "/customers", icon: Contact, roles: ["owner", "admin"] },
+        { name: "Pengguna & PIC", href: "/users", icon: Users, roles: ["owner", "admin"] },
+        { header: "Laporan" },
+        { name: "Laporan & Produktivitas", href: "/reports", icon: FileBarChart2, roles: ["owner", "admin"] },
+      ]
+    : [
+        { name: "Tugas Stasiun (SPX)", href: "/", icon: LayoutDashboard, roles: ["pic"] },
+        { name: "Scan Barcode / QR", href: "/scan", icon: QrCode, roles: ["pic"] },
+        { name: "Status Serah Terima", href: "/handovers", icon: ArrowLeftRight, roles: ["pic"] },
+        ...(role === "qc" ? [{ name: "Inspeksi QC", href: "/qc", icon: ShieldCheck, roles: ["qc"] }] : []),
+      ];
+
 
   return (
     <>

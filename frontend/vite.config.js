@@ -45,6 +45,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  assetsInclude: ["**/*.mpeg"],
   server: {
     port: 3000,
   },

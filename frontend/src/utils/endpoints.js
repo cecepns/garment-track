@@ -17,6 +17,10 @@ export const API_ENDPOINTS = {
     RECENT_ACTIVITIES: "/api/dashboard/recent-activities",
   },
 
+  PIC: {
+    SUMMARY: "/api/pic/dashboard-summary",
+  },
+
   ORDERS: {
     LIST: "/api/orders",
     DETAIL: (id) => `/api/orders/${id}`,

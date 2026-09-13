@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Lock, User, QrCode, ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { Lock, User, QrCode, ArrowRight, Loader2 } from "lucide-react";
 
 export const LoginPage = () => {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("password123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -16,16 +16,6 @@ export const LoginPage = () => {
       navigate("/");
     }
   };
-
-  const demoAccounts = [
-    { label: "Owner", user: "owner", desc: "Direktur / Monitoring" },
-    { label: "Admin", user: "admin", desc: "Order & Master Data" },
-    { label: "PIC Cutting", user: "pic_cutting", desc: "Potong Kain" },
-    { label: "PIC Sewing", user: "pic_sewing", desc: "Penjahit Pakaian" },
-    { label: "PIC Finishing", user: "pic_finishing", desc: "Buang Benang & Gosok" },
-    { label: "PIC QC", user: "pic_qc", desc: "Inspeksi Kualitas" },
-    { label: "PIC Packing", user: "pic_packing", desc: "Pengemasan & Kirim" },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 px-4 relative">
@@ -94,35 +84,9 @@ export const LoginPage = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Account Selector */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-500 font-semibold mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Login Cepat Akun Demo (Role):</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {demoAccounts.map((demo) => (
-                <button
-                  key={demo.user}
-                  type="button"
-                  onClick={() => {
-                    setUsername(demo.user);
-                    setPassword("password123");
-                  }}
-                  className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${username === demo.user
-                      ? "bg-indigo-50 border-indigo-300 text-indigo-900"
-                      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                    }`}
-                >
-                  <p className="text-xs font-bold truncate">{demo.label}</p>
-                  <p className="text-[10px] text-slate-500 truncate">{demo.desc}</p>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 };
+

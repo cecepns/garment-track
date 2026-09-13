@@ -14,6 +14,7 @@ import { ProductsPage } from "@/pages/ProductsPage";
 import { CustomersPage } from "@/pages/CustomersPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { ReportsPage } from "@/pages/ReportsPage";
+import { PWAInstallPrompt } from "@/components/common/PWAInstallPrompt";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <PWAInstallPrompt />
       </BrowserRouter>
     </AuthProvider>
   );

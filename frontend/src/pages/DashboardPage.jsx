@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Spinner } from "@/components/common/LoadingSkeleton";
+import { PICSPXDashboard } from "@/components/pic/PICSPXDashboard";
 
 export const DashboardPage = () => {
   const { user } = useAuth();
@@ -23,6 +24,29 @@ export const DashboardPage = () => {
   const [pipeline, setPipeline] = useState([]);
   const [recentLogs, setRecentLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPicMode, setShowPicMode] = useState(false);
+
+  const isPicRole = ["cutting", "sewing", "finishing", "qc", "packing"].includes(user?.role);
+
+  // Jika user adalah PIC murni, langsung tampilkan antarmuka SPX Express
+  if (isPicRole || showPicMode) {
+    return (
+      <div>
+        {!isPicRole && (
+          <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900 font-bold">
+            <span>Mode Pratinjau Tampilan PIC Lapangan (SPX Express)</span>
+            <button
+              onClick={() => setShowPicMode(false)}
+              className="px-3 py-1 bg-amber-800 text-white rounded-lg hover:bg-amber-900"
+            >
+              Kembali ke Dashboard Admin
+            </button>
+          </div>
+        )}
+        <PICSPXDashboard />
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchDashboardData();
@@ -91,6 +115,13 @@ export const DashboardPage = () => {
             >
               <Truck className="w-4 h-4 text-emerald-600" />
               <span>Periksa Serah Terima Masuk</span>
+            </button>
+            <button
+              onClick={() => setShowPicMode(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-xl text-xs sm:text-sm font-semibold transition-all"
+            >
+              <Truck className="w-4 h-4 text-[#EE4D2D]" />
+              <span>Pratinjau Mode PIC (SPX)</span>
             </button>
           </div>
         </div>
