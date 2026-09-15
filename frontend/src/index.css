@@ -32,3 +32,27 @@
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* QR Scanner video fixes for iOS WebKit & PWA */
+#qr-reader-region {
+  width: 100% !important;
+  min-height: 280px !important;
+  border: none !important;
+  background-color: #000000 !important;
+}
+
+#qr-reader-region video {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 280px !important;
+  object-fit: cover !important;
+  border-radius: 1rem;
+}
+
+#qr-reader-region__scan_region {
+  min-height: 280px !important;
+}
+
+#qr-reader-region__dashboard {
+  display: none !important;
+}
