@@ -28,30 +28,6 @@ export const DashboardPage = () => {
 
   const isPicRole = ["cutting", "sewing", "finishing", "qc", "packing"].includes(user?.role);
 
-  // Jika user adalah PIC murni, langsung tampilkan antarmuka SPX Express
-  if (isPicRole || showPicMode) {
-    return (
-      <div>
-        {!isPicRole && (
-          <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900 font-bold">
-            <span>Mode Pratinjau Tampilan PIC Lapangan (SPX Express)</span>
-            <button
-              onClick={() => setShowPicMode(false)}
-              className="px-3 py-1 bg-amber-800 text-white rounded-lg hover:bg-amber-900"
-            >
-              Kembali ke Dashboard Admin
-            </button>
-          </div>
-        )}
-        <PICSPXDashboard />
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
@@ -69,6 +45,32 @@ export const DashboardPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isPicRole) {
+      fetchDashboardData();
+    }
+  }, [isPicRole]);
+
+  // Jika user adalah PIC murni atau sedang dalam mode pratinjau PIC
+  if (isPicRole || showPicMode) {
+    return (
+      <div>
+        {!isPicRole && (
+          <div className="mb-3 p-3 bg-amber-100 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900 font-bold">
+            <span>Mode Pratinjau Tampilan PIC Lapangan (SPX Express)</span>
+            <button
+              onClick={() => setShowPicMode(false)}
+              className="px-3 py-1 bg-amber-800 text-white rounded-lg hover:bg-amber-900 cursor-pointer transition-colors"
+            >
+              Kembali ke Dashboard Admin
+            </button>
+          </div>
+        )}
+        <PICSPXDashboard />
+      </div>
+    );
+  }
 
   if (loading) return <Spinner size="lg" text="Memuat dashboard produksi..." />;
 
