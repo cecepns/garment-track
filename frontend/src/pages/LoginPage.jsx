@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Lock, User, QrCode, ArrowRight, Loader2 } from "lucide-react";
+import { Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import logoImg from "@/assets/logo.png";
 
 export const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -20,15 +21,15 @@ export const LoginPage = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 px-4 relative">
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        {/* Brand Icon */}
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 shadow-sm text-white mb-3">
-          <QrCode className="w-7 h-7" />
+        {/* Brand Logo */}
+        <div className="inline-flex items-center justify-center w-24 h-20 rounded-2xl bg-white shadow-sm border border-slate-200 p-2 mb-3">
+          <img src={logoImg} alt="Ashirvada Collection Logo" className="w-full h-full object-contain" />
         </div>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Garment<span className="text-indigo-600">Track</span>
+          Ashirvada <span className="text-indigo-600">Collection</span>
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Sistem Manajemen & Pelacakan Produksi Garment
+          Sistem Manajemen & Pelacakan Produksi
         </p>
       </div>
 

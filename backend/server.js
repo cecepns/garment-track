@@ -252,6 +252,105 @@ app.get("/api/dashboard/recent-activities", authenticateToken, async (req, res) 
   }
 });
 
+// Endpoint Khusus PIC Mobile (SPX Express Model)
+app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    const userId = req.user.id;
+
+    // 1. Serah Terima Masuk (Inbound) yang menunggu konfirmasi penerimaan
+    let incomingHandovers = [];
+    if (["sewing", "finishing", "qc", "packing"].includes(userRole)) {
+      const [inRows] = await dbPool.query(
+        `SELECT 
+          h.*,
+          COALESCE(o.order_number, 'N/A') AS order_number,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(c.name, 'N/A') AS customer_name,
+          COALESCE(fu.name, 'PIC Pengirim') AS from_user_name
+         FROM handovers h
+         LEFT JOIN orders o ON h.order_id = o.id
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN customers c ON o.customer_id = c.id
+         LEFT JOIN users fu ON h.from_user_id = fu.id
+         WHERE h.to_stage = ? AND h.status = 'in_transit'
+         ORDER BY h.sent_at DESC`,
+        [userRole]
+      );
+      incomingHandovers = inRows;
+    }
+
+    // 2. Tugas Aktif di Stasiun Kerja Saat Ini
+    let activeTasks = [];
+    if (["cutting", "sewing", "finishing", "qc", "packing"].includes(userRole)) {
+      const [orderRows] = await dbPool.query(
+        `SELECT 
+          o.*,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(c.name, 'N/A') AS customer_name
+         FROM orders o
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN customers c ON o.customer_id = c.id
+         WHERE o.current_stage = ? AND o.status = 'in_progress'
+         ORDER BY o.deadline ASC, o.id DESC`,
+        [userRole]
+      );
+      activeTasks = orderRows;
+    } else {
+      // Jika admin / owner membuka preview PIC
+      const [orderRows] = await dbPool.query(
+        `SELECT 
+          o.*,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(c.name, 'N/A') AS customer_name
+         FROM orders o
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN customers c ON o.customer_id = c.id
+         WHERE o.status = 'in_progress'
+         ORDER BY o.deadline ASC, o.id DESC
+         LIMIT 20`
+      );
+      activeTasks = orderRows;
+    }
+
+    // 3. Status Outbound (Serah terima yang dikirim dari stasiun ini - untuk cek sudah beres / diterima belum)
+    const [outRows] = await dbPool.query(
+      `SELECT 
+        h.*,
+        COALESCE(o.order_number, 'N/A') AS order_number,
+        COALESCE(p.name, 'N/A') AS product_name,
+        COALESCE(tu.name, 'Stasiun Penerima') AS to_user_name
+       FROM handovers h
+       LEFT JOIN orders o ON h.order_id = o.id
+       LEFT JOIN products p ON o.product_id = p.id
+       LEFT JOIN users tu ON h.to_user_id = tu.id
+       WHERE h.from_stage = ? OR h.from_user_id = ?
+       ORDER BY h.sent_at DESC
+       LIMIT 15`,
+      [userRole, userId]
+    );
+
+    // Hitung angka Inbound & Outbound ala SPX Express
+    // Inbound: untuk cutting = tugas aktif baru; untuk lainnya = serah terima masuk
+    const inboundCount = userRole === "cutting" ? activeTasks.length : incomingHandovers.length;
+    // Outbound: pesanan aktif siap dikirim atau serah terima yang sedang berjalan
+    const outboundCount = activeTasks.length;
+
+    return responseSuccess(res, {
+      role: userRole,
+      userName: req.user.name,
+      inboundCount,
+      outboundCount,
+      incomingHandovers,
+      activeTasks,
+      recentOutbounds: outRows,
+    });
+  } catch (error) {
+    return responseError(res, error.message);
+  }
+});
+
+
 // ==============================================================================
 // ORDERS ENDPOINTS (Search, Pagination, Filter, Modal CRUD)
 // ==============================================================================

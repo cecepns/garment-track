@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import logoImg from "@/assets/logo.png";
 
 export const Sidebar = ({ isOpen, onClose, isCollapsed }) => {
   const { user } = useAuth();
@@ -61,15 +62,15 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed }) => {
         {/* Brand Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm flex-shrink-0">
-              GT
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shadow-xs flex-shrink-0">
+              <img src={logoImg} alt="Ashirvada" className="w-full h-full object-contain" />
             </div>
             {!isCollapsed && (
-              <div className="flex flex-col">
-                <span className="font-extrabold text-slate-900 text-base tracking-tight leading-none">
-                  Garment<span className="text-indigo-600">Track</span>
+              <div className="flex flex-col min-w-0">
+                <span className="font-extrabold text-slate-900 text-sm tracking-tight leading-none truncate">
+                  Ashirvada <span className="text-indigo-600">Collection</span>
                 </span>
-                <span className="text-[11px] text-slate-500 font-medium tracking-wide mt-0.5">
+                <span className="text-[11px] text-slate-500 font-medium tracking-wide mt-0.5 truncate">
                   Production System
                 </span>
               </div>

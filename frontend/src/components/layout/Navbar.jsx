@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
+import logoImg from "@/assets/logo.png";
 
 export const Navbar = ({ onToggleSidebar, onOpenScanner }) => {
   const { user, logout } = useAuth();
@@ -53,11 +54,11 @@ export const Navbar = ({ onToggleSidebar, onOpenScanner }) => {
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-sm">
-            GT
+          <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shadow-xs">
+            <img src={logoImg} alt="Ashirvada" className="w-full h-full object-contain" />
           </div>
-          <span className="font-bold text-slate-900 tracking-tight text-base hidden sm:inline">
-            Garment<span className="text-indigo-600">Track</span>
+          <span className="font-extrabold text-slate-900 tracking-tight text-base hidden sm:inline">
+            Ashirvada <span className="text-indigo-600">Collection</span>
           </span>
         </div>
       </div>

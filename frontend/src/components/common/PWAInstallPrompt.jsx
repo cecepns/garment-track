@@ -1,17 +1,32 @@
 import React, { useState, useEffect } from "react";
-import { Download, Smartphone, X, Share2, PlusSquare, ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { Download, X, Share2, PlusSquare } from "lucide-react";
 import toast from "react-hot-toast";
+import logoImg from "@/assets/logo.png";
 
 export const PWAInstallPrompt = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  // Default TRUE agar popup langsung muncul seketika di layar!
+  const [deferredPrompt, setDeferredPrompt] = useState(
+    () => (typeof window !== "undefined" ? window.deferredPrompt : null)
+  );
+  const [isMobile, setIsMobile] = useState(false);
   const [showPrompt, setShowPrompt] = useState(true);
-  const [showManualGuide, setShowManualGuide] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // 1. Cek apakah aplikasi sudah berjalan dalam mode standalone (PWA sudah terinstall)
+    // 1. Cek apakah tampilan mobile (< 768px atau mobile userAgent)
+    const checkMobile = () => {
+      const isMobileWidth = window.innerWidth < 768;
+      const isMobileAgent = /iphone|ipad|ipod|android|mobile/i.test(
+        window.navigator.userAgent || ""
+      );
+      setIsMobile(isMobileWidth || isMobileAgent);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    // 2. Cek apakah sudah berjalan standalone (PWA sudah terinstall)
     const checkStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone ||
@@ -23,173 +38,159 @@ export const PWAInstallPrompt = () => {
       return;
     }
 
-    // 2. Deteksi perangkat iOS Safari
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-    const isSafari = /safari/.test(userAgent) && !/chrome|crios|fxios/.test(userAgent);
+    // 3. Deteksi iOS Safari
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(ua);
+    const isSafari = /safari/.test(ua) && !/chrome|crios|fxios/.test(ua);
     setIsIOS(isIosDevice && isSafari);
 
-    // 3. Tangkap event install PWA dari browser jika didukung
+    // 4. Tangkap event prompt instalasi
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
+      window.deferredPrompt = e;
       setDeferredPrompt(e);
       setShowPrompt(true);
     };
 
+    const handlePromptReady = () => {
+      if (window.deferredPrompt) {
+        setDeferredPrompt(window.deferredPrompt);
+        setShowPrompt(true);
+      }
+    };
+
     const handleAppInstalled = () => {
       setShowPrompt(false);
-      setShowManualGuide(false);
+      setShowGuide(false);
       setDeferredPrompt(null);
-      toast.success("Aplikasi GarmentTrack berhasil diinstal ke HP/Layar Utama!", {
-        duration: 5000,
-        icon: "🎉",
-      });
+      window.deferredPrompt = null;
+      toast.success("Aplikasi Ashirvada berhasil diinstal!", { icon: "🎉" });
     };
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("pwa-prompt-ready", handlePromptReady);
     window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
+      window.removeEventListener("resize", checkMobile);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("pwa-prompt-ready", handlePromptReady);
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
+  const handleInstall = async () => {
+    const promptEvent = deferredPrompt || window.deferredPrompt;
+    if (promptEvent) {
       try {
-        deferredPrompt.prompt();
-        const choiceResult = await deferredPrompt.userChoice;
-        if (choiceResult.outcome === "accepted") {
-          toast.success("Memasang aplikasi ke perangkat Anda...");
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice?.outcome === "accepted") {
+          toast.success("Memasang aplikasi Ashirvada...");
           setShowPrompt(false);
         }
+        window.deferredPrompt = null;
         setDeferredPrompt(null);
       } catch (err) {
-        console.warn("PWA install error:", err);
+        setShowGuide(true);
       }
     } else {
-      // Jika browser belum / tidak mendukung prompt otomatis satu-klik (seperti Safari iOS atau browser tertentu)
-      setShowManualGuide(true);
+      // Browser belum memicu prompt otomatis atau di iOS Safari
+      setShowGuide(true);
     }
   };
 
-  const handleDismiss = () => {
-    setShowPrompt(false);
-  };
-
-  if (isStandalone || !showPrompt) return null;
+  // Hanya muncul di mobile, tidak dalam mode standalone, dan belum ditutup
+  if (!isMobile || isStandalone || !showPrompt) return null;
 
   return (
     <>
-      {/* Floating Popup Utama */}
-      <div className="fixed bottom-20 lg:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border-2 border-orange-500/40 p-4 sm:p-5 relative overflow-hidden">
-          {/* Accent top gradient bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-[#EE4D2D] to-indigo-600" />
-
-          {/* Close Button */}
-          <button
-            onClick={handleDismiss}
-            className="absolute top-3 right-3 p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Tutup Popup"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {/* App Header & Icon */}
-          <div className="flex items-center space-x-3.5 pr-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#EE4D2D] to-orange-500 text-white flex items-center justify-center font-black text-lg shadow-md flex-shrink-0">
-              GT
+      {/* Floating Card Sederhana & Minimalis Khusus Mobile */}
+      <div className="md:hidden fixed bottom-4 left-3 right-3 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-3 flex items-center justify-between gap-2.5">
+          {/* Logo & Info Singkat */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center flex-shrink-0 shadow-xs">
+              <img
+                src={logoImg}
+                alt="Ashirvada"
+                className="w-full h-full object-contain"
+              />
             </div>
-
-            <div>
-              <div className="flex items-center space-x-1.5">
-                <h4 className="font-black text-slate-900 text-base tracking-tight leading-none">
-                  Garment<span className="text-[#EE4D2D]">Track</span> PWA
-                </h4>
-                <span className="px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-800 text-[10px] font-black uppercase">
-                  Mobile App
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Pasang di layar HP seperti aplikasi toko/playstore!
+            <div className="min-w-0">
+              <h4 className="font-bold text-slate-900 text-xs truncate leading-tight">
+                Ashirvada App
+              </h4>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                Install ke layar utama
               </p>
             </div>
           </div>
 
-          {/* Prominent Direct Install Button */}
-          <div className="mt-4 pt-1 space-y-2">
+          {/* Action Button: Install & Close */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             <button
-              onClick={handleInstallClick}
-              className="w-full py-3 px-4 bg-gradient-to-r from-[#EE4D2D] to-orange-600 hover:from-[#d63d1e] hover:to-orange-700 active:scale-98 text-white font-black text-sm rounded-xl shadow-lg shadow-orange-500/20 flex items-center justify-center space-x-2 transition-all cursor-pointer"
+              onClick={handleInstall}
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-xs px-3 py-2 rounded-xl shadow-xs transition-all cursor-pointer"
             >
-              <Download className="w-5 h-5" />
-              <span>INSTALL APLIKASI SEKARANG</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Install</span>
             </button>
-
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] text-slate-400 font-semibold">
-                ✓ Ringan • Tanpa Kuota Besar
-              </span>
-              <button
-                onClick={handleDismiss}
-                className="text-[11px] font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                Nanti Saja
-              </button>
-            </div>
+            <button
+              onClick={() => setShowPrompt(false)}
+              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+              title="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Manual Guide Modal (jika browser tidak mendukung auto-prompt window.deferredPrompt) */}
-      {showManualGuide && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 text-[#EE4D2D] flex items-center justify-center mx-auto mb-3 font-bold">
-              <Smartphone className="w-6 h-6" />
+      {/* Panduan Singkat Jika Dibutuhkan (misal Safari iOS) */}
+      {showGuide && (
+        <div className="md:hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-200 space-y-4 animate-in slide-in-from-bottom-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-1 flex items-center justify-center shadow-xs">
+                  <img src={logoImg} alt="Ashirvada" className="w-full h-full object-contain" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-sm">Install Ashirvada</h3>
+              </div>
+              <button
+                onClick={() => setShowGuide(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <h3 className="text-lg font-black text-slate-900 text-center tracking-tight">
-              Cara Memasang ke Layar Utama
-            </h3>
-
             {isIOS ? (
-              <div className="mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-950 space-y-2.5">
-                <div className="flex items-center space-x-2 font-bold text-amber-900">
-                  <Share2 className="w-4 h-4 text-amber-700" />
-                  <span>Petunjuk iPhone / iPad (Safari):</span>
-                </div>
-                <p className="leading-relaxed">
-                  1. Ketuk ikon <span className="font-bold">Bagikan (Share / Kotak Panah)</span> di bilah bawah browser Safari.
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                <p className="flex items-center gap-1.5 font-medium">
+                  1. Ketuk tombol <Share2 className="w-3.5 h-3.5 inline text-slate-800" /> <span className="font-bold">Share</span> di Safari.
                 </p>
-                <p className="leading-relaxed flex items-center space-x-1">
-                  <span>2. Gulir ke bawah dan pilih</span>
-                  <PlusSquare className="w-3.5 h-3.5 inline mx-1 text-slate-800" />
-                  <span className="font-bold">"Tambahkan ke Layar Utama"</span>.
+                <p className="flex items-center gap-1.5 font-medium">
+                  2. Pilih <PlusSquare className="w-3.5 h-3.5 inline text-slate-800" /> <span className="font-bold">"Tambah ke Layar Utama"</span>.
                 </p>
               </div>
             ) : (
-              <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2.5">
-                <div className="flex items-center space-x-2 font-bold text-slate-900">
-                  <Download className="w-4 h-4 text-[#EE4D2D]" />
-                  <span>Petunjuk Browser Android / Chrome:</span>
-                </div>
-                <p className="leading-relaxed">
-                  1. Ketuk ikon titik tiga <span className="font-bold">(⋮)</span> di pojok kanan atas browser Anda.
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                <p className="font-medium">
+                  1. Ketuk ikon titik tiga <span className="font-bold">(⋮)</span> di kanan atas browser.
                 </p>
-                <p className="leading-relaxed">
-                  2. Pilih menu <span className="font-bold text-[#EE4D2D]">"Tambahkan ke Layar Utama"</span> atau <span className="font-bold text-[#EE4D2D]">"Install Aplikasi"</span>.
+                <p className="font-medium">
+                  2. Pilih menu <span className="font-bold text-indigo-600">"Install Aplikasi"</span> atau <span className="font-bold text-indigo-600">"Tambahkan ke Layar Utama"</span>.
                 </p>
               </div>
             )}
 
             <button
-              onClick={() => setShowManualGuide(false)}
-              className="mt-5 w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl cursor-pointer"
+              onClick={() => setShowGuide(false)}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors"
             >
-              Mengerti, Terima Kasih
+              Mengerti
             </button>
           </div>
         </div>
