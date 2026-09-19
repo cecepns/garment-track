@@ -114,6 +114,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
         (decodedText) => {
           if (isLockedRef.current) return;
           isLockedRef.current = true;
+          playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
           stopScanner();
           onScanSuccess(decodedText);
         },
@@ -179,6 +180,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       const fileScanner = new Html5Qrcode("qr-file-region");
       const decoded = await fileScanner.scanFile(file, true);
       toast.dismiss(toastId);
+      playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
       await stopScanner();
       onScanSuccess(decoded);
     } catch (err) {
@@ -197,6 +199,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       toast.error("Masukkan kode pesanan / barcode");
       return;
     }
+    playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
     stopScanner();
     onScanSuccess(code);
   };
