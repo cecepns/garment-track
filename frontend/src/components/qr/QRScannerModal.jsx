@@ -15,6 +15,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
   const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   const scannerRef = useRef(null);
+  const isLockedRef = useRef(false);
   const qrRegionId = "qr-reader-region";
 
   const isIOS = typeof window !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -26,6 +27,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
     let timeoutId = null;
 
     if (isOpen) {
+      isLockedRef.current = false;
       setCameraError(null);
       setManualInput("");
       setIsBlackScreenWarning(false);
@@ -110,8 +112,8 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
           aspectRatio: 1.0,
         },
         (decodedText) => {
-          playScanSound();
-          toast.success(`Barcode terdeteksi: ${decodedText}`);
+          if (isLockedRef.current) return;
+          isLockedRef.current = true;
           stopScanner();
           onScanSuccess(decodedText);
         },
@@ -177,8 +179,6 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       const fileScanner = new Html5Qrcode("qr-file-region");
       const decoded = await fileScanner.scanFile(file, true);
       toast.dismiss(toastId);
-      playScanSound();
-      toast.success(`Berhasil memindai: ${decoded}`);
       await stopScanner();
       onScanSuccess(decoded);
     } catch (err) {
@@ -192,13 +192,13 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
-    if (!manualInput.trim()) {
+    const code = manualInput.trim();
+    if (!code) {
       toast.error("Masukkan kode pesanan / barcode");
       return;
     }
-    playScanSound();
     stopScanner();
-    onScanSuccess(manualInput.trim());
+    onScanSuccess(code);
   };
 
   return (

@@ -67,6 +67,8 @@ CREATE TABLE `orders` (
   `customer_id` INT NOT NULL,
   `product_id` INT NOT NULL,
   `target_qty` INT NOT NULL,
+  `serial_number` VARCHAR(100) NULL,
+  `tailor_name` VARCHAR(100) NULL,
   `completed_qty` INT DEFAULT 0,
   `reject_qty` INT DEFAULT 0,
   `deadline` DATE NULL,

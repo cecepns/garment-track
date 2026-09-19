@@ -128,10 +128,18 @@ export const OrderDetailPage = () => {
       </div>
 
       {/* Production Order Summary Card */}
-      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div>
           <span className="text-xs text-slate-400 font-semibold">Target Kuantitas</span>
-          <p className="text-2xl font-black text-slate-900 mt-0.5">{order.target_qty} PCS</p>
+          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">{order.target_qty} PCS</p>
+        </div>
+        <div>
+          <span className="text-xs text-slate-400 font-semibold">Kode Seri Barang</span>
+          <p className="text-sm font-black text-indigo-700 mt-1.5">{order.serial_number || "-"}</p>
+        </div>
+        <div>
+          <span className="text-xs text-slate-400 font-semibold">Calon Penjahit</span>
+          <p className="text-sm font-bold text-slate-800 mt-1.5">{order.tailor_name || "-"}</p>
         </div>
         <div>
           <span className="text-xs text-slate-400 font-semibold">Status Pesanan</span>
@@ -148,7 +156,7 @@ export const OrderDetailPage = () => {
           </p>
         </div>
         <div>
-          <span className="text-xs text-slate-400 font-semibold">Total Reject Terdeteksi</span>
+          <span className="text-xs text-slate-400 font-semibold">Total Reject</span>
           <p className="text-sm font-bold text-rose-600 mt-1.5 flex items-center space-x-1">
             <AlertOctagon className="w-3.5 h-3.5" />
             <span>{order.reject_qty || 0} PCS</span>

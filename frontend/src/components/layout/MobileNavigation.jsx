@@ -1,13 +1,13 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Layers, ArrowLeftRight, ShieldCheck, QrCode, CheckCircle2 } from "lucide-react";
+import { LayoutDashboard, Layers, ArrowLeftRight, ShieldCheck, QrCode, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export const MobileNavigation = ({ onOpenScanner }) => {
   const { user } = useAuth();
   const isPicRole = ["cutting", "sewing", "finishing", "qc", "packing"].includes(user?.role);
 
-  // Navigasi Ultra Simpel Khusus PIC Lansia (Hanya Tugas Saya & Scan Cepat)
+  // Navigasi Ultra Simpel Khusus PIC (Tugas Saya, Scan Dropoff, Laporan Realtime)
   if (isPicRole) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 lg:hidden px-4 py-2 flex items-center justify-around shadow-lg">
@@ -22,7 +22,7 @@ export const MobileNavigation = ({ onOpenScanner }) => {
           <span>Tugas</span>
         </NavLink>
 
-        {/* Center Prominent Scan Button */}
+        {/* Center Prominent Scan Button (Khusus Dropoff / Outbound) */}
         <button
           onClick={onOpenScanner}
           className="relative -top-4 flex flex-col items-center group focus:outline-none"
@@ -33,15 +33,16 @@ export const MobileNavigation = ({ onOpenScanner }) => {
           <span className="text-[11px] font-black text-[#EE4D2D] mt-0.5">SCAN QR</span>
         </button>
 
+        {/* Revisi Client: ganti cari spk di pojok kanan bawah dengan laporan realtime */}
         <NavLink
-          to="/scan"
+          to="/reports"
           className={({ isActive }) =>
             `flex flex-col items-center py-1 px-3 text-xs font-bold transition-colors ${isActive ? "text-[#EE4D2D]" : "text-slate-500 hover:text-slate-800"
             }`
           }
         >
-          <CheckCircle2 className="w-6 h-6 mb-1" />
-          <span>Cari SPK</span>
+          <TrendingUp className="w-6 h-6 mb-1" />
+          <span>Laporan</span>
         </NavLink>
       </nav>
     );

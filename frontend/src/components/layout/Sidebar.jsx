@@ -40,6 +40,7 @@ export const Sidebar = ({ isOpen, onClose, isCollapsed }) => {
         { name: "Scan Barcode / QR", href: "/scan", icon: QrCode, roles: ["pic"] },
         { name: "Status Serah Terima", href: "/handovers", icon: ArrowLeftRight, roles: ["pic"] },
         ...(role === "qc" ? [{ name: "Inspeksi QC", href: "/qc", icon: ShieldCheck, roles: ["qc"] }] : []),
+        { name: "Laporan Realtime", href: "/reports", icon: FileBarChart2, roles: ["pic"] },
       ];
 
 

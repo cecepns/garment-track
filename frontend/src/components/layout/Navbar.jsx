@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, LogOut, QrCode, Bell, User } from "lucide-react";
+import { Menu, LogOut, Search, Bell, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { request } from "@/utils/request";
@@ -63,16 +63,16 @@ export const Navbar = ({ onToggleSidebar, onOpenScanner }) => {
         </div>
       </div>
 
-      {/* Right: Quick Action QR, Notifications, Profile & Logout */}
+      {/* Right: Quick Search, Notifications, Profile & Logout */}
       <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* Quick QR Scanner Button */}
+        {/* Quick Search Button (Revisi Client: ganti scan dengan searching) */}
         <button
-          onClick={onOpenScanner}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all text-xs font-semibold shadow-sm"
-          title="Buka Kamera Scan QR Barcode"
+          onClick={() => navigate("/scan")}
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-700 hover:text-indigo-600 transition-all text-xs font-semibold shadow-2xs"
+          title="Pencarian Cepat SPK / Barcode"
         >
-          <QrCode className="w-4 h-4" />
-          <span className="hidden md:inline">Scan Barcode</span>
+          <Search className="w-4 h-4 text-slate-500" />
+          <span className="hidden md:inline">Cari SPK</span>
         </button>
 
         {/* Incoming Handover Notification Badge */}

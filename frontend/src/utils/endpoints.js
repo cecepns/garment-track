@@ -35,6 +35,7 @@ export const API_ENDPOINTS = {
     LIST: "/api/handovers",
     CREATE: "/api/handovers",
     RECEIVE: (id) => `/api/handovers/${id}/receive`,
+    RECEIVE_ALL: "/api/handovers/receive-all",
     INCOMING: "/api/handovers/incoming",
   },
 

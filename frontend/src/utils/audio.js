@@ -1,14 +1,16 @@
 import scanAudioUrl from "@/assets/scan.mpeg";
+import failedAudioUrl from "@/assets/failed.mp3";
 
-let scanAudio = null;
+let successAudio = null;
+let errorAudio = null;
 
-export const playScanSound = () => {
+export const playSuccessSound = () => {
   try {
-    if (!scanAudio) {
-      scanAudio = new Audio(scanAudioUrl);
+    if (!successAudio) {
+      successAudio = new Audio(scanAudioUrl);
     }
-    scanAudio.currentTime = 0;
-    const playPromise = scanAudio.play();
+    successAudio.currentTime = 0;
+    const playPromise = successAudio.play();
     if (playPromise !== undefined) {
       playPromise.catch((error) => {
         console.warn("Autoplay scan sound prevented by browser:", error);
@@ -18,3 +20,23 @@ export const playScanSound = () => {
     console.warn("Could not play scan sound:", err);
   }
 };
+
+export const playScanSound = playSuccessSound; // Alias untuk kompatibilitas
+
+export const playErrorSound = () => {
+  try {
+    if (!errorAudio) {
+      errorAudio = new Audio(failedAudioUrl);
+    }
+    errorAudio.currentTime = 0;
+    const playPromise = errorAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.warn("Autoplay error sound prevented by browser:", error);
+      });
+    }
+  } catch (err) {
+    console.warn("Could not play error sound:", err);
+  }
+};
+

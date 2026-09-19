@@ -225,10 +225,22 @@ export const OrdersPage = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="font-bold text-slate-900">{order.product_name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{order.product_code}</div>
+                      <div className="flex items-center space-x-2 text-[11px] text-slate-500 font-mono mt-0.5">
+                        <span>{order.product_code}</span>
+                        {order.serial_number && (
+                          <span className="px-1.5 py-0.2 bg-slate-100 rounded text-indigo-700 font-bold">
+                            {order.serial_number}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="text-slate-700 font-medium">{order.customer_name}</span>
+                      <div className="text-slate-900 font-medium">{order.customer_name}</div>
+                      {order.tailor_name && (
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          Penjahit: <strong className="text-slate-700">{order.tailor_name}</strong>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-center font-bold text-slate-900">
                       {order.target_qty} <span className="text-xs font-normal text-slate-500">pcs</span>

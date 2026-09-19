@@ -68,7 +68,19 @@ export const QRCodePrintModal = ({ isOpen, onClose, order }) => {
               <tbody>
                 <tr>
                   <td className="label font-bold text-slate-700 py-1">Pelanggan:</td>
-                  <td className="text-slate-900">{order.customer_name || "N/A"}</td>
+                  <td className="text-slate-900 font-semibold">{order.customer_name || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td className="label font-bold text-slate-700 py-1">Kode Seri:</td>
+                  <td className="text-slate-900 font-bold">{order.serial_number || "-"}</td>
+                </tr>
+                <tr>
+                  <td className="label font-bold text-slate-700 py-1">No. Order / SPK:</td>
+                  <td className="font-mono font-bold text-slate-900">{order.order_number}</td>
+                </tr>
+                <tr>
+                  <td className="label font-bold text-slate-700 py-1">Penjahit:</td>
+                  <td className="text-slate-900 font-bold">{order.tailor_name || "-"}</td>
                 </tr>
                 <tr>
                   <td className="label font-bold text-slate-700 py-1">Produk:</td>

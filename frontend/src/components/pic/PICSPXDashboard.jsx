@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
-import { playScanSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound } from "@/utils/audio";
 import {
   QrCode,
   ArrowDownLeft,
@@ -10,6 +10,7 @@ import {
   RefreshCw,
   LogOut,
   CheckCircle2,
+  CheckCheck,
   Clock,
   Truck,
   Box,
@@ -84,30 +85,81 @@ export const PICSPXDashboard = () => {
     fetchSummary();
   };
 
-  // When QR code is scanned: plays sound, finds match, opens the appropriate 1-click modal
+  // Terima Langsung 1-Klik tanpa perlu scan ulang kamera (Sesuai Revisi Klien)
+  const handleDirectReceive = async (handover) => {
+    try {
+      const res = await request.put(API_ENDPOINTS.HANDOVERS.RECEIVE(handover.id), {
+        qty_received: handover.qty_sent,
+        discrepancy_reason: "",
+      });
+      if (res.success) {
+        playSuccessSound();
+        toast.success(`Berhasil menerima ${handover.qty_sent} pcs (${handover.order_number})!`);
+        fetchSummary();
+      }
+    } catch (err) {
+      playErrorSound();
+      toast.error(err.message || "Gagal menerima barang");
+    }
+  };
+
+  // Terima Semua Antrean Barang Masuk 1-Klik
+  const handleReceiveAll = async () => {
+    if (!window.confirm(`Konfirmasi menerima seluruh ${incomingList.length} antrean barang masuk sekarang?`)) {
+      return;
+    }
+    try {
+      const res = await request.post(API_ENDPOINTS.HANDOVERS.RECEIVE_ALL, {});
+      if (res.success) {
+        playSuccessSound();
+        toast.success(res.message || "Semua barang masuk berhasil diterima!");
+        fetchSummary();
+      }
+    } catch (err) {
+      playErrorSound();
+      toast.error(err.message || "Gagal menerima semua antrean");
+    }
+  };
+
+  // When QR code is scanned for Drop-off / Dispatch:
+  // Cek duplikasi, putar suara sesuai kondisi (scan.mpeg vs failed.mp3)
   const handleScanSuccess = async (code) => {
     setIsScannerOpen(false);
     const cleanCode = code.trim().toUpperCase();
 
-    // Check if code matches an incoming handover
+    // 1. Cek apakah kode cocok dengan serah terima masuk (Inbound)
     const matchedIncoming = summaryData?.incomingHandovers?.find(
       (h) => h.handover_code.toUpperCase() === cleanCode || h.order_number.toUpperCase() === cleanCode
     );
 
     if (matchedIncoming) {
-      playScanSound();
+      playSuccessSound();
       setSelectedHandoverToReceive(matchedIncoming);
       setIsReceiveModalOpen(true);
       return;
     }
 
-    // Check if code matches an active order in this station
+    // 2. CEGAH DOUBLE SCAN: Cek apakah pesanan ini SUDAH PERNAH DIKIRIM dan sedang berstatus in_transit
+    const alreadyInTransit = summaryData?.recentOutbounds?.find(
+      (h) => h.order_number.toUpperCase() === cleanCode && h.status === "in_transit"
+    );
+
+    if (alreadyInTransit) {
+      playErrorSound();
+      toast.error(
+        `Barcode ${cleanCode} SUDAH DISCAN & DIKIRIM sebelumnya! Saat ini berstatus DI PERJALANAN (menunggu diterima divisi ${alreadyInTransit.to_stage.toUpperCase()}). Tidak dapat discan ganda!`,
+        { duration: 5500, icon: "⚠️" }
+      );
+      return;
+    }
+
+    // 3. Cek apakah kode cocok dengan tugas aktif di stasiun ini
     const matchedOrder = summaryData?.activeTasks?.find(
       (o) => o.order_number.toUpperCase() === cleanCode
     );
 
     if (matchedOrder) {
-      playScanSound();
+      playSuccessSound();
       if (currentRole === "qc") {
         setSelectedOrderForQc(matchedOrder);
         setIsQcModalOpen(true);
@@ -118,12 +170,29 @@ export const PICSPXDashboard = () => {
       return;
     }
 
-    // Fallback: Query server for order details
+    // 4. Fallback: Query server untuk detail pesanan
     try {
       const res = await request.get(API_ENDPOINTS.ORDERS.SCAN(cleanCode));
       if (res.success && res.data) {
-        playScanSound();
         const scannedOrder = res.data;
+
+        // Validasi jika server menyatakan ada serah terima pending
+        if (scannedOrder.has_pending_handover && scannedOrder.pending_handover) {
+          playErrorSound();
+          toast.error(
+            `Pesanan ${scannedOrder.order_number} SUDAH DISCAN sebelumnya (${scannedOrder.pending_handover.handover_code}) ke stasiun ${scannedOrder.pending_handover.to_stage.toUpperCase()} dan berstatus DI PERJALANAN! Tidak bisa discan ganda.`,
+            { duration: 5500, icon: "⚠️" }
+          );
+          return;
+        }
+
+        if (scannedOrder.status === "completed" || scannedOrder.current_stage === "delivered") {
+          playErrorSound();
+          toast.error(`Pesanan ${scannedOrder.order_number} sudah selesai / terkirim ke klien!`);
+          return;
+        }
+
+        playSuccessSound();
         if (scannerPurpose === "outbound" || currentRole === scannedOrder.current_stage) {
           if (currentRole === "qc") {
             setSelectedOrderForQc(scannedOrder);
@@ -139,6 +208,7 @@ export const PICSPXDashboard = () => {
         }
       }
     } catch (err) {
+      playErrorSound();
       toast.error(`Barcode "${code}" tidak ditemukan pada daftar tugas`);
     }
   };
@@ -254,28 +324,38 @@ export const PICSPXDashboard = () => {
                 )}
               </div>
 
-              {/* Inbound Touch Buttons */}
-              <div className="grid grid-cols-2 gap-3.5">
-                {/* 1. Scan Terima */}
+              {/* Inbound Quick Actions (Cukup scan dropoff, inbound konfirmasi 1-klik tanpa repot scan kamera) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* 1. Terima Semua Antrean 1-Klik */}
                 <button
-                  onClick={() => {
-                    setScannerPurpose("inbound");
-                    setIsScannerOpen(true);
-                  }}
-                  className="p-4 sm:p-5 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border-2 border-emerald-200 text-emerald-900 active:scale-97 transition-all flex flex-col items-center text-center group"
+                  onClick={handleReceiveAll}
+                  disabled={incomingList.length === 0}
+                  className={`p-4 sm:p-5 rounded-2xl border-2 transition-all flex flex-col items-center text-center group ${
+                    incomingList.length > 0
+                      ? "bg-emerald-50 hover:bg-emerald-100/80 border-emerald-300 text-emerald-900 active:scale-97 cursor-pointer shadow-xs"
+                      : "bg-slate-50 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed"
+                  }`}
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md mb-2.5 group-hover:scale-105 transition-transform">
-                    <QrCode className="w-8 h-8" />
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md mb-2.5 transition-transform ${
+                      incomingList.length > 0
+                        ? "bg-emerald-600 text-white group-hover:scale-105"
+                        : "bg-slate-300 text-slate-500"
+                    }`}
+                  >
+                    <CheckCheck className="w-8 h-8" />
                   </div>
                   <span className="text-base font-black text-slate-900 leading-tight">
-                    Scan Terima
+                    Terima Semua
                   </span>
                   <span className="text-xs text-slate-500 font-semibold mt-1">
-                    Pindai & Terima Kain
+                    {incomingList.length > 0
+                      ? `Konfirmasi Cepat (${incomingList.length} Antrean)`
+                      : "Tidak Ada Antrean Masuk"}
                   </span>
                 </button>
 
-                {/* 2. Antrean Masuk */}
+                {/* 2. Daftar Masuk */}
                 <button
                   onClick={() => {
                     if (incomingList.length > 0) {
@@ -302,39 +382,68 @@ export const PICSPXDashboard = () => {
               {/* List of Incoming Handovers if any */}
               {incomingList.length > 0 && (
                 <div className="space-y-2.5 pt-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                    Perlu Anda Terima Sekarang:
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                      Perlu Anda Terima Sekarang:
+                    </span>
+                    <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Cukup klik "Terima", tidak perlu scan lagi
+                    </span>
+                  </div>
                   {incomingList.map((h) => (
                     <div
                       key={h.id}
-                      className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex items-center justify-between"
+                      className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="font-mono text-sm font-black text-slate-900">
                             {h.order_number}
                           </span>
-                          <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 text-[10px] font-bold">
+                          <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 text-[10px] font-bold uppercase">
                             Dari: {h.from_stage}
                           </span>
+                          {h.serial_number && (
+                            <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[10px] font-bold">
+                              Seri: {h.serial_number}
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs font-semibold text-slate-700 mt-0.5">
                           {h.product_name}
                         </p>
-                        <span className="text-xs font-black text-amber-800 mt-1 block">
-                          Jumlah: {h.qty_sent} PCS
-                        </span>
+                        <div className="flex items-center space-x-3 text-xs mt-1">
+                          <span className="font-black text-amber-800">
+                            Jumlah: {h.qty_sent} PCS
+                          </span>
+                          {h.tailor_name && (
+                            <span className="text-slate-500 font-medium">
+                              Penjahit: <strong className="text-slate-700">{h.tailor_name}</strong>
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedHandoverToReceive(h);
-                          setIsReceiveModalOpen(true);
-                        }}
-                        className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs"
-                      >
-                        Terima
-                      </button>
+
+                      <div className="flex items-center space-x-2 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedHandoverToReceive(h);
+                            setIsReceiveModalOpen(true);
+                          }}
+                          className="py-2.5 px-3 text-slate-500 hover:text-amber-800 font-bold text-xs hover:underline"
+                        >
+                          Ada Selisih?
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDirectReceive(h)}
+                          className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs flex items-center space-x-1 transition-all"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Terima {h.qty_sent} pcs</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -499,15 +608,29 @@ export const PICSPXDashboard = () => {
                     className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 flex items-center justify-between"
                   >
                     <div>
-                      <span className="font-mono text-sm font-black text-slate-900 block">
-                        {order.order_number}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-sm font-black text-slate-900">
+                          {order.order_number}
+                        </span>
+                        {order.serial_number && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[10px] font-bold">
+                            Seri: {order.serial_number}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs font-semibold text-slate-700 mt-0.5">
                         {order.product_name}
                       </p>
-                      <span className="text-xs font-bold text-orange-600 mt-1 block">
-                        Target: {order.target_qty} PCS (Sedang Dikerjakan)
-                      </span>
+                      <div className="flex items-center space-x-3 text-xs mt-1">
+                        <span className="font-bold text-orange-600">
+                          Target: {order.target_qty} PCS (Sedang Dikerjakan)
+                        </span>
+                        {order.tailor_name && (
+                          <span className="text-slate-500 font-medium">
+                            Penjahit: <strong className="text-slate-700">{order.tailor_name}</strong>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <button

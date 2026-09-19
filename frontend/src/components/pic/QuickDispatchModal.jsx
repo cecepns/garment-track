@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
+import { playSuccessSound, playErrorSound } from "@/utils/audio";
 import { Send, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -59,6 +60,7 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
 
       const res = await request.post(API_ENDPOINTS.HANDOVERS.CREATE, payload);
       if (res.success) {
+        playSuccessSound();
         toast.success(`Berhasil mengirim ${qty} pcs ke divisi ${targetStage.toUpperCase()}!`, {
           duration: 4000,
         });
@@ -66,6 +68,7 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
         onClose();
       }
     } catch (err) {
+      playErrorSound();
       toast.error(err.message || "Gagal mengirim serah terima");
     } finally {
       setLoading(false);
@@ -73,7 +76,7 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Kirim Barang ke Proses Lanjut" maxWidth="max-w-lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Kirim Barang ke Proses Lanjut (Drop-off)" maxWidth="max-w-lg">
       <form onSubmit={handleSendHandover} className="space-y-5">
         {/* SPK Target Summary Banner */}
         <div className="p-4 sm:p-5 rounded-2xl bg-orange-50 border-2 border-orange-200">
@@ -87,8 +90,20 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
           <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {order.product_name}
           </div>
-          <div className="text-sm font-semibold text-slate-600 mt-1">
-            Target Pesanan: <span className="font-bold text-slate-900">{order.target_qty} PCS</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold text-slate-600 mt-1.5">
+            <div>
+              Target: <span className="font-bold text-slate-900">{order.target_qty} PCS</span>
+            </div>
+            {order.serial_number && (
+              <div>
+                Seri: <span className="font-bold text-slate-900">{order.serial_number}</span>
+              </div>
+            )}
+            {order.tailor_name && (
+              <div>
+                Penjahit: <span className="font-bold text-slate-900">{order.tailor_name}</span>
+              </div>
+            )}
           </div>
         </div>
 

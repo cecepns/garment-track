@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
+import { playSuccessSound, playErrorSound } from "@/utils/audio";
 import { CheckCircle2, AlertTriangle, ArrowDownLeft, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -41,11 +42,13 @@ export const QuickReceiveModal = ({ isOpen, onClose, onSuccess, handover }) => {
       });
 
       if (res.success) {
+        playSuccessSound();
         toast.success(`Berhasil menerima ${qty} pcs barang!`, { duration: 4000 });
         onSuccess?.();
         onClose();
       }
     } catch (err) {
+      playErrorSound();
       toast.error(err.message || "Gagal konfirmasi penerimaan");
     } finally {
       setLoading(false);
@@ -69,8 +72,20 @@ export const QuickReceiveModal = ({ isOpen, onClose, onSuccess, handover }) => {
             <div className="text-base font-semibold text-slate-700">
               {handover.product_name}
             </div>
-            <div className="text-xs text-slate-500 font-medium">
-              Pengirim: <span className="font-bold text-slate-700">{handover.from_user_name || "PIC Pengirim"}</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+              <div>
+                Pengirim: <span className="font-bold text-slate-700">{handover.from_user_name || "PIC Pengirim"}</span>
+              </div>
+              {handover.serial_number && (
+                <div>
+                  Seri: <span className="font-bold text-slate-700">{handover.serial_number}</span>
+                </div>
+              )}
+              {handover.tailor_name && (
+                <div>
+                  Penjahit: <span className="font-bold text-slate-700">{handover.tailor_name}</span>
+                </div>
+              )}
             </div>
           </div>
 

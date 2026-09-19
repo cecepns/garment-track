@@ -442,7 +442,26 @@ app.get("/api/orders/scan/:number", authenticateToken, async (req, res) => {
       return responseError(res, `Pesanan dengan barcode/QR "${number}" tidak ditemukan`, 404);
     }
 
-    return responseSuccess(res, orders[0]);
+    const order = orders[0];
+
+    // Cek apakah order ini sedang dalam perjalanan (in_transit) menuju divisi berikutnya
+    const [pendingRows] = await dbPool.query(
+      `SELECT h.*, fu.name AS from_user_name, tu.name AS to_user_name
+       FROM handovers h
+       LEFT JOIN users fu ON h.from_user_id = fu.id
+       LEFT JOIN users tu ON h.to_user_id = tu.id
+       WHERE h.order_id = ? AND h.status = 'in_transit'
+       ORDER BY h.sent_at DESC LIMIT 1`,
+      [order.id]
+    );
+
+    const pending_handover = pendingRows.length > 0 ? pendingRows[0] : null;
+
+    return responseSuccess(res, {
+      ...order,
+      pending_handover,
+      has_pending_handover: Boolean(pending_handover),
+    });
   } catch (error) {
     return responseError(res, error.message);
   }
@@ -563,7 +582,7 @@ app.get("/api/orders/:id/tracking", authenticateToken, async (req, res) => {
 
 app.post("/api/orders", authenticateToken, async (req, res) => {
   try {
-    const { customer_id, product_id, target_qty, deadline, notes } = req.body;
+    const { customer_id, product_id, target_qty, serial_number, tailor_name, deadline, notes } = req.body;
     if (!customer_id || !product_id || !target_qty) {
       return responseError(res, "Customer, produk, dan target kuantitas wajib diisi", 400);
     }
@@ -575,13 +594,15 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
 
     const [insertResult] = await dbPool.query(
       `INSERT INTO orders 
-        (order_number, customer_id, product_id, target_qty, completed_qty, reject_qty, deadline, current_stage, status, notes, created_by)
-       VALUES (?, ?, ?, ?, 0, 0, ?, 'cutting', 'in_progress', ?, ?)`,
+        (order_number, customer_id, product_id, target_qty, serial_number, tailor_name, completed_qty, reject_qty, deadline, current_stage, status, notes, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, 0, 0, ?, 'cutting', 'in_progress', ?, ?)`,
       [
         order_number,
         parseInt(customer_id, 10),
         parseInt(product_id, 10),
         parseInt(target_qty, 10),
+        serial_number ? serial_number.trim() : null,
+        tailor_name ? tailor_name.trim() : null,
         deadline || null,
         notes || "",
         req.user.id,
@@ -598,7 +619,9 @@ app.post("/api/orders", authenticateToken, async (req, res) => {
         createdOrderId,
         req.user.id,
         parseInt(target_qty, 10),
-        `Surat Perintah Kerja ${order_number} dibuat untuk ${target_qty} pcs`,
+        `Surat Perintah Kerja ${order_number} dibuat untuk ${target_qty} pcs` +
+          (tailor_name ? ` (Penjahit: ${tailor_name})` : "") +
+          (serial_number ? ` [Seri: ${serial_number}]` : ""),
       ]
     );
 
@@ -623,7 +646,7 @@ app.put("/api/orders/:id", authenticateToken, async (req, res) => {
     const [[existingOrder]] = await dbPool.query("SELECT * FROM orders WHERE id = ?", [id]);
     if (!existingOrder) return responseError(res, "Pesanan tidak ditemukan", 404);
 
-    const { customer_id, product_id, target_qty, deadline, current_stage, status, notes } = req.body;
+    const { customer_id, product_id, target_qty, serial_number, tailor_name, deadline, current_stage, status, notes } = req.body;
     const prevStage = existingOrder.current_stage;
 
     await dbPool.query(
@@ -631,6 +654,8 @@ app.put("/api/orders/:id", authenticateToken, async (req, res) => {
         customer_id = ?,
         product_id = ?,
         target_qty = ?,
+        serial_number = ?,
+        tailor_name = ?,
         deadline = ?,
         current_stage = ?,
         status = ?,
@@ -640,6 +665,8 @@ app.put("/api/orders/:id", authenticateToken, async (req, res) => {
         customer_id ? parseInt(customer_id, 10) : existingOrder.customer_id,
         product_id ? parseInt(product_id, 10) : existingOrder.product_id,
         target_qty ? parseInt(target_qty, 10) : existingOrder.target_qty,
+        serial_number !== undefined ? (serial_number ? serial_number.trim() : null) : existingOrder.serial_number,
+        tailor_name !== undefined ? (tailor_name ? tailor_name.trim() : null) : existingOrder.tailor_name,
         deadline !== undefined ? deadline : existingOrder.deadline,
         current_stage || existingOrder.current_stage,
         status || existingOrder.status,
@@ -803,6 +830,28 @@ app.post("/api/handovers", authenticateToken, async (req, res) => {
     const [[order]] = await dbPool.query("SELECT * FROM orders WHERE id = ?", [parseInt(order_id, 10)]);
     if (!order) return responseError(res, "Order tidak ditemukan", 404);
 
+    if (order.status === "completed" || order.current_stage === "delivered") {
+      return responseError(res, "Pesanan ini sudah selesai / sudah terkirim ke klien!", 400);
+    }
+
+    // PENCEGAHAN DOUBLE SCAN: Cek apakah pesanan ini sudah memiliki handover aktif yang berstatus in_transit
+    const [existingInTransit] = await dbPool.query(
+      `SELECT h.*, u.name AS from_user_name 
+       FROM handovers h 
+       LEFT JOIN users u ON h.from_user_id = u.id
+       WHERE h.order_id = ? AND h.status = 'in_transit'`,
+      [parseInt(order_id, 10)]
+    );
+
+    if (existingInTransit.length > 0) {
+      const active = existingInTransit[0];
+      return responseError(
+        res,
+        `Pesanan ${order.order_number} sudah discan/dikirim sebelumnya (${active.handover_code}) ke stasiun ${active.to_stage.toUpperCase()} dan saat ini berstatus DI PERJALANAN (menunggu konfirmasi). Tidak dapat discan atau dikirim ganda!`,
+        400
+      );
+    }
+
     const [[maxRow]] = await dbPool.query("SELECT COALESCE(MAX(id), 0) AS maxId FROM handovers");
     const nextId = Number(maxRow.maxId || 0) + 1;
     const yearMonth = new Date().toISOString().slice(0, 7).replace("-", "");
@@ -841,6 +890,74 @@ app.post("/api/handovers", authenticateToken, async (req, res) => {
     const [[newHandover]] = await dbPool.query("SELECT * FROM handovers WHERE id = ?", [insertResult.insertId]);
 
     return responseSuccess(res, newHandover, "Serah terima berhasil dikirim. Menunggu konfirmasi penerima!");
+  } catch (error) {
+    return responseError(res, error.message);
+  }
+});
+
+// Receive / Accept ALL Inbound Handovers for current station in 1 click
+app.post("/api/handovers/receive-all", authenticateToken, async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    if (!["sewing", "finishing", "qc", "packing"].includes(userRole) && userRole !== "admin" && userRole !== "owner") {
+      return responseError(res, "Divisi Anda tidak memiliki antrean barang masuk", 400);
+    }
+
+    const whereStage = ["admin", "owner"].includes(userRole) ? "" : "AND h.to_stage = ?";
+    const queryParams = ["admin", "owner"].includes(userRole) ? [] : [userRole];
+
+    const [pendingList] = await dbPool.query(
+      `SELECT h.*, o.order_number 
+       FROM handovers h 
+       JOIN orders o ON h.order_id = o.id
+       WHERE h.status = 'in_transit' ${whereStage}`,
+      queryParams
+    );
+
+    if (pendingList.length === 0) {
+      return responseSuccess(res, { count: 0 }, "Tidak ada antrean barang masuk yang menunggu diterima.");
+    }
+
+    let acceptedCount = 0;
+    for (const handover of pendingList) {
+      await dbPool.query(
+        `UPDATE handovers SET 
+          qty_received = qty_sent,
+          status = 'received',
+          to_user_id = ?,
+          received_at = NOW()
+         WHERE id = ?`,
+        [req.user.id, handover.id]
+      );
+
+      if (handover.to_stage === "delivered") {
+        await dbPool.query(
+          "UPDATE orders SET current_stage = ?, status = 'completed', completed_qty = ? WHERE id = ?",
+          [handover.to_stage, handover.qty_sent, handover.order_id]
+        );
+      } else {
+        await dbPool.query(
+          "UPDATE orders SET current_stage = ? WHERE id = ?",
+          [handover.to_stage, handover.order_id]
+        );
+      }
+
+      await dbPool.query(
+        `INSERT INTO production_logs (order_id, stage, action, actor_id, qty_affected, description)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          handover.order_id,
+          handover.to_stage,
+          `HANDOVER_ACCEPTED_BY_${handover.to_stage.toUpperCase()}`,
+          req.user.id,
+          handover.qty_sent,
+          `${req.user.name} menerima serah terima cepat (${handover.handover_code}) sejumlah ${handover.qty_sent} pcs di divisi ${handover.to_stage}`,
+        ]
+      );
+      acceptedCount++;
+    }
+
+    return responseSuccess(res, { count: acceptedCount }, `Berhasil menerima ${acceptedCount} serah terima barang masuk!`);
   } catch (error) {
     return responseError(res, error.message);
   }
@@ -1522,12 +1639,31 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
+// Auto-migration helper for schema updates
+async function ensureDbColumns() {
+  try {
+    const [cols] = await dbPool.query("SHOW COLUMNS FROM orders LIKE 'serial_number'");
+    if (cols.length === 0) {
+      await dbPool.query("ALTER TABLE orders ADD COLUMN serial_number VARCHAR(100) NULL AFTER target_qty");
+      console.log("✅ Auto-migration: Added column serial_number to orders table");
+    }
+    const [cols2] = await dbPool.query("SHOW COLUMNS FROM orders LIKE 'tailor_name'");
+    if (cols2.length === 0) {
+      await dbPool.query("ALTER TABLE orders ADD COLUMN tailor_name VARCHAR(100) NULL AFTER serial_number");
+      console.log("✅ Auto-migration: Added column tailor_name to orders table");
+    }
+  } catch (err) {
+    console.warn("⚠️ Db column check notice:", err.message);
+  }
+}
+
 // Start Server
 app.listen(PORT, async () => {
   console.log(`🚀 Garment Management Server is running on port ${PORT}`);
   try {
     await dbPool.query("SELECT 1");
     console.log("✅ MySQL Database connected successfully.");
+    await ensureDbColumns();
   } catch (err) {
     console.error("❌ MySQL Connection Failed:", err.message);
   }

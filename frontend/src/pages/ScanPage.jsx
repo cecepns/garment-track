@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { HandoverModal } from "@/components/orders/HandoverModal";
 import { QCModal } from "@/components/orders/QCModal";
-import { playScanSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound } from "@/utils/audio";
 import toast from "react-hot-toast";
 
 export const ScanPage = () => {
@@ -50,10 +50,11 @@ export const ScanPage = () => {
     try {
       const res = await request.get(API_ENDPOINTS.ORDERS.SCAN(code));
       if (res.success && res.data) {
-        playScanSound();
+        playSuccessSound();
         setOrder(res.data);
       }
     } catch (err) {
+      playErrorSound();
       setNotFound(true);
       toast.error(err.message || "Pesanan tidak ditemukan");
     } finally {
@@ -138,7 +139,16 @@ export const ScanPage = () => {
             </span>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-4 text-sm">
+          {order.pending_handover && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span>
+                Pesanan ini sudah discan/dikirim ({order.pending_handover.handover_code}) ke stasiun {order.pending_handover.to_stage.toUpperCase()} dan saat ini berstatus DI PERJALANAN (Menunggu Konfirmasi).
+              </span>
+            </div>
+          )}
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-xs text-slate-400 font-semibold">Produk:</span>
               <p className="font-bold text-slate-900 mt-0.5">{order.product_name}</p>
@@ -146,6 +156,14 @@ export const ScanPage = () => {
             <div>
               <span className="text-xs text-slate-400 font-semibold">Target Qty:</span>
               <p className="font-bold text-slate-900 mt-0.5">{order.target_qty} PCS</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-400 font-semibold">Kode Seri:</span>
+              <p className="font-bold text-indigo-700 mt-0.5">{order.serial_number || "-"}</p>
+            </div>
+            <div>
+              <span className="text-xs text-slate-400 font-semibold">Calon Penjahit:</span>
+              <p className="font-bold text-slate-900 mt-0.5">{order.tailor_name || "-"}</p>
             </div>
             <div>
               <span className="text-xs text-slate-400 font-semibold">Status Pesanan:</span>

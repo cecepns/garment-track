@@ -15,6 +15,8 @@ export const OrderModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
     customer_id: "",
     product_id: "",
     target_qty: "",
+    serial_number: "",
+    tailor_name: "",
     deadline: "",
     notes: "",
     current_stage: "cutting",
@@ -29,6 +31,8 @@ export const OrderModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
           customer_id: editData.customer_id || "",
           product_id: editData.product_id || "",
           target_qty: editData.target_qty || "",
+          serial_number: editData.serial_number || "",
+          tailor_name: editData.tailor_name || "",
           deadline: editData.deadline ? editData.deadline.split("T")[0] : "",
           notes: editData.notes || "",
           current_stage: editData.current_stage || "cutting",
@@ -39,6 +43,8 @@ export const OrderModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
           customer_id: "",
           product_id: "",
           target_qty: "",
+          serial_number: "",
+          tailor_name: "",
           deadline: "",
           notes: "",
           current_stage: "cutting",
@@ -165,6 +171,34 @@ export const OrderModal = ({ isOpen, onClose, onSuccess, editData = null }) => {
                 value={formData.deadline}
                 onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Kode Seri Barang (SOP PDF)
+              </label>
+              <input
+                type="text"
+                value={formData.serial_number}
+                onChange={(e) => setFormData({ ...formData, serial_number: e.target.value })}
+                placeholder="Misal: BRD 3011 (M)"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Calon Penjahit (Nama Penjahit)
+              </label>
+              <input
+                type="text"
+                value={formData.tailor_name}
+                onChange={(e) => setFormData({ ...formData, tailor_name: e.target.value })}
+                placeholder="Misal: Saripin / Kang Asep"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
             </div>
           </div>
