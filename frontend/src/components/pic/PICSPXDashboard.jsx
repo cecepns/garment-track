@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
-import { playSuccessSound, playErrorSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 import {
   QrCode,
   ArrowDownLeft,
@@ -87,6 +87,7 @@ export const PICSPXDashboard = () => {
 
   // Terima Langsung 1-Klik tanpa perlu scan ulang kamera (Sesuai Revisi Klien)
   const handleDirectReceive = async (handover) => {
+    warmAudio();
     try {
       const res = await request.put(API_ENDPOINTS.HANDOVERS.RECEIVE(handover.id), {
         qty_received: handover.qty_sent,
@@ -105,6 +106,7 @@ export const PICSPXDashboard = () => {
 
   // Terima Semua Antrean Barang Masuk 1-Klik
   const handleReceiveAll = async () => {
+    warmAudio();
     if (!window.confirm(`Konfirmasi menerima seluruh ${incomingList.length} antrean barang masuk sekarang?`)) {
       return;
     }
@@ -122,8 +124,9 @@ export const PICSPXDashboard = () => {
   };
 
   // When QR code is scanned for Drop-off / Dispatch:
-  // Cek duplikasi, putar suara sesuai kondisi (scan.mpeg vs failed.mp3)
+  // Cek duplikasi, putar suara sesuai kondisi (scan.mp3 vs failed.mp3)
   const handleScanSuccess = async (code) => {
+    warmAudio();
     setIsScannerOpen(false);
     const cleanCode = code.trim().toUpperCase();
 
@@ -635,6 +638,7 @@ export const PICSPXDashboard = () => {
 
                     <button
                       onClick={() => {
+                        warmAudio();
                         if (currentRole === "qc") {
                           setSelectedOrderForQc(order);
                           setIsQcModalOpen(true);

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/common/Modal";
 import { Html5Qrcode } from "html5-qrcode";
 import { Camera, Upload, AlertCircle, RefreshCw, Info, CheckCircle2 } from "lucide-react";
-import { playScanSound } from "@/utils/audio";
+import { playErrorSound, warmAudio } from "@/utils/audio";
 import toast from "react-hot-toast";
 
 export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
@@ -114,7 +114,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
         (decodedText) => {
           if (isLockedRef.current) return;
           isLockedRef.current = true;
-          playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
+          warmAudio();
           stopScanner();
           onScanSuccess(decodedText);
         },
@@ -174,17 +174,18 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    warmAudio();
     setIsProcessingFile(true);
     const toastId = toast.loading("Memindai barcode dari foto...");
     try {
       const fileScanner = new Html5Qrcode("qr-file-region");
       const decoded = await fileScanner.scanFile(file, true);
       toast.dismiss(toastId);
-      playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
       await stopScanner();
       onScanSuccess(decoded);
     } catch (err) {
       toast.dismiss(toastId);
+      playErrorSound();
       toast.error("QR Code tidak terbaca. Pastikan foto tegak, fokus, dan pencahayaan cukup.");
     } finally {
       setIsProcessingFile(false);
@@ -199,7 +200,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
       toast.error("Masukkan kode pesanan / barcode");
       return;
     }
-    playScanSound(); // Tiap scan pastikan berbunyi suara scan.mpeg
+    warmAudio();
     stopScanner();
     onScanSuccess(code);
   };

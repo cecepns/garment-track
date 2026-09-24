@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
-import { playSuccessSound, playErrorSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 import { Send, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -42,6 +42,7 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
 
   const handleSendHandover = async (e) => {
     e.preventDefault();
+    warmAudio();
     const qty = parseInt(qtySent, 10);
     if (isNaN(qty) || qty <= 0) {
       toast.error("Jumlah kirim harus lebih dari 0");

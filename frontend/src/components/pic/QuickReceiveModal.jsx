@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal } from "@/components/common/Modal";
 import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
-import { playSuccessSound, playErrorSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 import { CheckCircle2, AlertTriangle, ArrowDownLeft, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -23,6 +23,7 @@ export const QuickReceiveModal = ({ isOpen, onClose, onSuccess, handover }) => {
   if (!handover) return null;
 
   const handleConfirmReceive = async () => {
+    warmAudio();
     const qty = parseInt(qtyReceived, 10);
     if (isNaN(qty) || qty <= 0) {
       toast.error("Jumlah barang harus lebih dari 0");

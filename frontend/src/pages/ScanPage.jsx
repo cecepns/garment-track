@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { HandoverModal } from "@/components/orders/HandoverModal";
 import { QCModal } from "@/components/orders/QCModal";
-import { playSuccessSound, playErrorSound } from "@/utils/audio";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 import toast from "react-hot-toast";
 
 export const ScanPage = () => {
@@ -38,6 +38,7 @@ export const ScanPage = () => {
   }, [initialCode]);
 
   const handleLookup = async (codeToLookup) => {
+    warmAudio();
     const code = (codeToLookup || inputCode).trim();
     if (!code) {
       toast.error("Masukkan atau scan kode barcode");

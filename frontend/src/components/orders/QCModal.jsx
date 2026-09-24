@@ -4,6 +4,7 @@ import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
 import toast from "react-hot-toast";
 import { Loader2, CheckCircle2, AlertOctagon, RotateCcw } from "lucide-react";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 
 export const QCModal = ({ isOpen, onClose, onSuccess, initialOrder = null }) => {
   const [orders, setOrders] = useState([]);
@@ -87,13 +88,16 @@ export const QCModal = ({ isOpen, onClose, onSuccess, initialOrder = null }) => 
       return;
     }
 
+    warmAudio();
     setSubmitting(true);
     try {
       await request.post(API_ENDPOINTS.QC.CREATE, formData);
+      playSuccessSound();
       toast.success("Hasil inspeksi QC berhasil disimpan!");
       onSuccess();
       onClose();
     } catch (err) {
+      playErrorSound();
       toast.error(err.message || "Gagal menyimpan hasil QC");
     } finally {
       setSubmitting(false);

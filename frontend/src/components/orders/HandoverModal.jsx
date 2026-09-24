@@ -4,6 +4,7 @@ import { request } from "@/utils/request";
 import { API_ENDPOINTS } from "@/utils/endpoints";
 import toast from "react-hot-toast";
 import { Loader2, ArrowRight } from "lucide-react";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 
 export const HandoverModal = ({ isOpen, onClose, onSuccess, initialOrder = null }) => {
   const [orders, setOrders] = useState([]);
@@ -93,13 +94,16 @@ export const HandoverModal = ({ isOpen, onClose, onSuccess, initialOrder = null 
       return;
     }
 
+    warmAudio();
     setSubmitting(true);
     try {
       await request.post(API_ENDPOINTS.HANDOVERS.CREATE, formData);
+      playSuccessSound();
       toast.success("Serah terima berhasil dikirim! Status sekarang: In Transit.");
       onSuccess();
       onClose();
     } catch (err) {
+      playErrorSound();
       toast.error(err.message || "Gagal mengirim serah terima");
     } finally {
       setSubmitting(false);

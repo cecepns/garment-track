@@ -18,6 +18,7 @@ import { TableSkeleton, EmptyState } from "@/components/common/LoadingSkeleton";
 import { HandoverModal } from "@/components/orders/HandoverModal";
 import { Modal } from "@/components/common/Modal";
 import toast from "react-hot-toast";
+import { playSuccessSound, playErrorSound, warmAudio } from "@/utils/audio";
 
 export const HandoversPage = () => {
   const { user } = useAuth();
@@ -95,17 +96,20 @@ export const HandoversPage = () => {
     e.preventDefault();
     if (!receiveModal.handover) return;
 
+    warmAudio();
     setReceiveModal((prev) => ({ ...prev, submitting: true }));
     try {
       await request.put(API_ENDPOINTS.HANDOVERS.RECEIVE(receiveModal.handover.id), {
         qty_received: receiveModal.receivedQty,
         discrepancy_reason: receiveModal.discrepancy,
       });
+      playSuccessSound();
       toast.success("Barang serah terima berhasil diverifikasi & diterima!");
       setReceiveModal({ isOpen: false, handover: null, receivedQty: "", discrepancy: "", submitting: false });
       fetchHandovers();
       fetchIncoming();
     } catch (err) {
+      playErrorSound();
       toast.error(err.message || "Gagal mengonfirmasi penerimaan barang");
       setReceiveModal((prev) => ({ ...prev, submitting: false }));
     }
