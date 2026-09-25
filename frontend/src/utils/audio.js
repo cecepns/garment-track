@@ -5,7 +5,7 @@ import failedAudioUrl from "@/assets/failed.mp3";
 let audioCtx = null;
 let successBuffer = null;
 let errorBuffer = null;
-let isAudioContextInitialized = false;
+let isPreloading = false;
 
 const getAudioContext = () => {
   if (typeof window === "undefined") return null;
@@ -21,22 +21,40 @@ const getAudioContext = () => {
 // Pre-decode audio bytes langsung ke memori (PCM buffer)
 const preloadAudioBuffers = async () => {
   const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!ctx || isPreloading) return;
+  if (successBuffer && errorBuffer) return;
+
+  isPreloading = true;
 
   try {
     if (!successBuffer) {
       const res = await fetch(scanAudioUrl);
       const arrayBuffer = await res.arrayBuffer();
-      // Gunakan callback fallback untuk Safari versi lama
-      ctx.decodeAudioData(
-        arrayBuffer,
-        (decoded) => {
-          successBuffer = decoded;
-        },
-        (err) => {
-          console.warn("Could not pre-decode success audio:", err);
+      await new Promise((resolve) => {
+        try {
+          const promise = ctx.decodeAudioData(
+            arrayBuffer,
+            (decoded) => {
+              successBuffer = decoded;
+              resolve();
+            },
+            (err) => {
+              console.warn("Could not pre-decode success audio:", err);
+              resolve();
+            }
+          );
+          if (promise && typeof promise.then === "function") {
+            promise
+              .then((decoded) => {
+                successBuffer = decoded;
+                resolve();
+              })
+              .catch(() => resolve());
+          }
+        } catch (e) {
+          resolve();
         }
-      );
+      });
     }
   } catch (err) {
     console.warn("Fetch success audio failed:", err);
@@ -46,18 +64,36 @@ const preloadAudioBuffers = async () => {
     if (!errorBuffer) {
       const res = await fetch(failedAudioUrl);
       const arrayBuffer = await res.arrayBuffer();
-      ctx.decodeAudioData(
-        arrayBuffer,
-        (decoded) => {
-          errorBuffer = decoded;
-        },
-        (err) => {
-          console.warn("Could not pre-decode error audio:", err);
+      await new Promise((resolve) => {
+        try {
+          const promise = ctx.decodeAudioData(
+            arrayBuffer,
+            (decoded) => {
+              errorBuffer = decoded;
+              resolve();
+            },
+            (err) => {
+              console.warn("Could not pre-decode error audio:", err);
+              resolve();
+            }
+          );
+          if (promise && typeof promise.then === "function") {
+            promise
+              .then((decoded) => {
+                errorBuffer = decoded;
+                resolve();
+              })
+              .catch(() => resolve());
+          }
+        } catch (e) {
+          resolve();
         }
-      );
+      });
     }
   } catch (err) {
     console.warn("Fetch error audio failed:", err);
+  } finally {
+    isPreloading = false;
   }
 };
 
@@ -124,7 +160,7 @@ const playSynthBeep = (isSuccess) => {
   }
 };
 
-// Pemanasan audio context pada interaksi user (klik tombol / tap layar)
+// Pemanasan audio context pada interaksi user (klik tombol / tap layar) tanpa memutar suara
 export const warmAudio = () => {
   const ctx = getAudioContext();
   if (ctx && ctx.state === "suspended") {
@@ -140,8 +176,11 @@ export const playSuccessSound = () => {
   const ctx = getAudioContext();
 
   // 1. Metode Utama: Web Audio API (Decoded buffer in memory, zero delay, bypass async restriction)
-  if (ctx && successBuffer && ctx.state === "running") {
+  if (ctx && successBuffer) {
     try {
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
       const source = ctx.createBufferSource();
       source.buffer = successBuffer;
       source.connect(ctx.destination);
@@ -152,7 +191,7 @@ export const playSuccessSound = () => {
     }
   }
 
-  // 2. Metode Kedua: HTML5 Audio Element
+  // 2. Metode Kedua: HTML5 Audio Element (hanya saat pemindaian sesungguhnya)
   try {
     const audio = getHtmlAudio("success") || new Audio(scanAudioUrl);
     audio.currentTime = 0;
@@ -176,8 +215,11 @@ export const playErrorSound = () => {
   const ctx = getAudioContext();
 
   // 1. Metode Utama: Web Audio API
-  if (ctx && errorBuffer && ctx.state === "running") {
+  if (ctx && errorBuffer) {
     try {
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
       const source = ctx.createBufferSource();
       source.buffer = errorBuffer;
       source.connect(ctx.destination);
@@ -205,25 +247,42 @@ export const playErrorSound = () => {
   }
 };
 
-// Auto-unlock audio saat interaksi user pertama kali di perangkat mobile / PWA
+// Auto-unlock Web Audio API context saat interaksi user pertama kali di perangkat mobile / PWA / iOS Safari
 if (typeof window !== "undefined") {
-  const unlockEvents = ["click", "touchstart", "touchend", "pointerdown", "keydown"];
-  const unlockAudio = () => {
-    warmAudio();
+  let isAudioUnlocked = false;
+  const unlockEvents = ["click", "touchstart", "touchend"];
 
-    // Trigger silent mini buffer di HTML5 Audio untuk membuka blokir autoplay Safari iOS
-    try {
-      const audio = new Audio(scanAudioUrl);
-      audio.volume = 0.001;
-      audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }).catch(() => {});
-    } catch (e) {
-      // silent
+  const unlockAudio = () => {
+    if (isAudioUnlocked) return;
+    isAudioUnlocked = true;
+
+    // Bersihkan listener segera dengan useCapture = true agar listener benar-benar terlepas
+    unlockEvents.forEach((evt) => {
+      window.removeEventListener(evt, unlockAudio, true);
+    });
+
+    // 1. Resume AudioContext dalam gesture user tanpa memutar audio media apapun
+    const ctx = getAudioContext();
+    if (ctx) {
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      // Mainkan silent buffer (1 sample = 0.000045s audio sunyi tanpa suara)
+      // Ini murni untuk membuka batasan Web Audio API di iOS WebKit tanpa terdengar bunyi apapun
+      try {
+        const silentBuffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = silentBuffer;
+        source.connect(ctx.destination);
+        source.start(0);
+      } catch (e) {
+        // silent
+      }
     }
 
-    unlockEvents.forEach((evt) => window.removeEventListener(evt, unlockAudio));
+    // 2. Preload buffer audio ke memori agar siap saat user memindai barcode
+    preloadAudioBuffers();
   };
 
   unlockEvents.forEach((evt) => {
