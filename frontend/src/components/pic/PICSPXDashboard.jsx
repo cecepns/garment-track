@@ -125,18 +125,36 @@ export const PICSPXDashboard = () => {
 
   // When QR code is scanned for Drop-off / Dispatch:
   // Cek duplikasi, putar suara sesuai kondisi (scan.mp3 vs failed.mp3)
-  const handleScanSuccess = async (code) => {
+  const handleScanSuccess = async (rawCode) => {
     warmAudio();
     setIsScannerOpen(false);
-    const cleanCode = code.trim().toUpperCase();
+    if (!rawCode) return;
+
+    // Bersihkan kode dari format URL atau whitespace
+    let cleanCode = rawCode.trim();
+    if (cleanCode.includes("code=")) {
+      cleanCode = cleanCode.split("code=")[1].split("&")[0];
+    } else if (cleanCode.includes("/")) {
+      const parts = cleanCode.split("/").filter(Boolean);
+      cleanCode = parts[parts.length - 1];
+    }
+    cleanCode = cleanCode.trim().toUpperCase();
 
     // 1. Cek apakah kode cocok dengan serah terima masuk (Inbound)
     const matchedIncoming = summaryData?.incomingHandovers?.find(
-      (h) => h.handover_code.toUpperCase() === cleanCode || h.order_number.toUpperCase() === cleanCode
+      (h) =>
+        h.handover_code?.toUpperCase() === cleanCode ||
+        h.order_number?.toUpperCase() === cleanCode ||
+        (h.serial_number && h.serial_number.toUpperCase() === cleanCode)
     );
 
     if (matchedIncoming) {
       playSuccessSound();
+      toast.success(
+        `Barang Masuk Ditemukan: ${matchedIncoming.order_number}${
+          matchedIncoming.tailor_name ? ` (Penjahit: ${matchedIncoming.tailor_name})` : ""
+        }`
+      );
       setSelectedHandoverToReceive(matchedIncoming);
       setIsReceiveModalOpen(true);
       return;
@@ -144,7 +162,11 @@ export const PICSPXDashboard = () => {
 
     // 2. CEGAH DOUBLE SCAN: Cek apakah pesanan ini SUDAH PERNAH DIKIRIM dan sedang berstatus in_transit
     const alreadyInTransit = summaryData?.recentOutbounds?.find(
-      (h) => h.order_number.toUpperCase() === cleanCode && h.status === "in_transit"
+      (h) =>
+        (h.order_number?.toUpperCase() === cleanCode ||
+          (h.serial_number && h.serial_number.toUpperCase() === cleanCode) ||
+          h.handover_code?.toUpperCase() === cleanCode) &&
+        h.status === "in_transit"
     );
 
     if (alreadyInTransit) {
@@ -158,11 +180,18 @@ export const PICSPXDashboard = () => {
 
     // 3. Cek apakah kode cocok dengan tugas aktif di stasiun ini
     const matchedOrder = summaryData?.activeTasks?.find(
-      (o) => o.order_number.toUpperCase() === cleanCode
+      (o) =>
+        o.order_number?.toUpperCase() === cleanCode ||
+        (o.serial_number && o.serial_number.toUpperCase() === cleanCode)
     );
 
     if (matchedOrder) {
       playSuccessSound();
+      toast.success(
+        `SPK Ditemukan: ${matchedOrder.order_number}${
+          matchedOrder.tailor_name ? ` (Penjahit: ${matchedOrder.tailor_name})` : ""
+        }`
+      );
       if (currentRole === "qc") {
         setSelectedOrderForQc(matchedOrder);
         setIsQcModalOpen(true);
@@ -196,6 +225,11 @@ export const PICSPXDashboard = () => {
         }
 
         playSuccessSound();
+        toast.success(
+          `SPK Ditemukan: ${scannedOrder.order_number}${
+            scannedOrder.tailor_name ? ` (Penjahit: ${scannedOrder.tailor_name})` : ""
+          }`
+        );
         if (scannerPurpose === "outbound" || currentRole === scannedOrder.current_stage) {
           if (currentRole === "qc") {
             setSelectedOrderForQc(scannedOrder);
@@ -205,14 +239,13 @@ export const PICSPXDashboard = () => {
             setIsDispatchModalOpen(true);
           }
         } else {
-          toast.success(`Pesanan ditemukan: ${scannedOrder.order_number}`);
           setSelectedOrderToDispatch(scannedOrder);
           setIsDispatchModalOpen(true);
         }
       }
     } catch (err) {
       playErrorSound();
-      toast.error(`Barcode "${code}" tidak ditemukan pada daftar tugas`);
+      toast.error(`Barcode "${rawCode}" tidak ditemukan pada daftar tugas`);
     }
   };
 
@@ -362,8 +395,9 @@ export const PICSPXDashboard = () => {
                 <button
                   onClick={() => {
                     if (incomingList.length > 0) {
-                      setSelectedHandoverToReceive(incomingList[0]);
-                      setIsReceiveModalOpen(true);
+                      const el = document.getElementById("inbound-items-container");
+                      if (el) el.scrollIntoView({ behavior: "smooth" });
+                      else toast(`Ada ${incomingList.length} antrean barang masuk di bawah`, { icon: "📦" });
                     } else {
                       toast("Belum ada barang masuk yang menunggu diterima", { icon: "ℹ️" });
                     }
@@ -384,7 +418,7 @@ export const PICSPXDashboard = () => {
 
               {/* List of Incoming Handovers if any */}
               {incomingList.length > 0 && (
-                <div className="space-y-2.5 pt-2">
+                <div id="inbound-items-container" className="space-y-2.5 pt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                       Perlu Anda Terima Sekarang:
@@ -415,13 +449,16 @@ export const PICSPXDashboard = () => {
                         <p className="text-xs font-semibold text-slate-700 mt-0.5">
                           {h.product_name}
                         </p>
-                        <div className="flex items-center space-x-3 text-xs mt-1">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
                           <span className="font-black text-amber-800">
                             Jumlah: {h.qty_sent} PCS
                           </span>
                           {h.tailor_name && (
-                            <span className="text-slate-500 font-medium">
-                              Penjahit: <strong className="text-slate-700">{h.tailor_name}</strong>
+                            <span className="text-slate-600 font-medium flex items-center space-x-1">
+                              <span>Penjahit:</span>
+                              <strong className="text-amber-950 bg-amber-200/80 px-2 py-0.5 rounded-md font-bold">
+                                {h.tailor_name}
+                              </strong>
                             </span>
                           )}
                         </div>
@@ -456,17 +493,17 @@ export const PICSPXDashboard = () => {
 
           {/* B. OUTBOUND SECTION */}
           {(activeTab === "all" || activeTab === "outbound") && (
-            <div className="space-y-3.5 pt-2">
+            <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                   <h3 className="text-base sm:text-lg font-black text-slate-800 tracking-tight">
-                    Outbound (Kirim / Selesai)
+                    Outbound & Pengiriman
                   </h3>
                 </div>
                 {outboundCount > 0 && (
                   <span className="px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-800 text-xs font-black">
-                    {outboundCount} Siap Kirim
+                    {outboundCount} Outbound
                   </span>
                 )}
               </div>
@@ -509,25 +546,90 @@ export const PICSPXDashboard = () => {
                 </button>
               </div>
 
-              {/* Khusus PIC QC: Tombol Inspeksi QC */}
-              {currentRole === "qc" && (
-                <div className="pt-2">
-                  <button
-                    onClick={() => {
-                      if (activeTaskList.length > 0) {
-                        setSelectedOrderForQc(activeTaskList[0]);
-                        setIsQcModalOpen(true);
-                      } else {
-                        setIsScannerOpen(true);
-                      }
-                    }}
-                    className="w-full p-4 rounded-2xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 text-rose-900 flex items-center justify-center space-x-3 active:scale-98 transition-all"
-                  >
-                    <ShieldCheck className="w-6 h-6 text-rose-600" />
-                    <span className="text-base font-black">Input Inspeksi QC (Good/Reject/Rework)</span>
-                  </button>
+              {/* B.1. DAFTAR TUGAS AKTIF DI STASIUN INI (SIAP DIKERJAKAN / DIKIRIM) */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                    Tugas Aktif di Stasiun Ini ({activeTaskList.length}):
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-500">
+                    Klik "Kirim" atau scan untuk drop-off
+                  </span>
                 </div>
-              )}
+
+                {activeTaskList.length > 0 ? (
+                  <div className="space-y-3">
+                    {activeTaskList.map((order) => (
+                      <div
+                        key={order.id}
+                        className="p-4 rounded-2xl bg-white border-2 border-slate-200 hover:border-orange-300 transition-colors shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-mono text-sm font-black text-slate-900">
+                              {order.order_number}
+                            </span>
+                            {order.serial_number && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200">
+                                Seri: {order.serial_number}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-slate-800 mt-0.5">
+                            {order.product_name}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
+                            <span className="font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                              Target: {order.target_qty} PCS
+                            </span>
+                            {order.tailor_name && (
+                              <span className="text-slate-600 font-medium flex items-center space-x-1">
+                                <span>Penjahit:</span>
+                                <strong className="text-indigo-950 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200 font-bold">
+                                  {order.tailor_name}
+                                </strong>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 self-end sm:self-center">
+                          {currentRole === "qc" && (
+                            <button
+                              onClick={() => {
+                                warmAudio();
+                                setSelectedOrderForQc(order);
+                                setIsQcModalOpen(true);
+                              }}
+                              className="py-2.5 px-3.5 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-xs rounded-xl border border-rose-300 flex items-center space-x-1"
+                            >
+                              <ShieldCheck className="w-4 h-4 text-rose-600" />
+                              <span>Inspeksi QC</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              warmAudio();
+                              setSelectedOrderToDispatch(order);
+                              setIsDispatchModalOpen(true);
+                            }}
+                            className="py-2.5 px-4 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs flex items-center space-x-1"
+                          >
+                            <Truck className="w-4 h-4" />
+                            <span>{currentRole === "qc" ? "Kirim ke Kemas" : "Kirim (Drop-off)"}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 text-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-400">
+                    <p className="text-xs font-semibold text-slate-500">
+                      Tidak ada tugas aktif yang belum dikirim. Silakan terima barang masuk atau istirahat.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -569,17 +671,32 @@ export const PICSPXDashboard = () => {
                             <span className="text-xs text-slate-500 font-medium">
                               ({item.qty_sent} pcs)
                             </span>
+                            {item.serial_number && (
+                              <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[10px] font-bold">
+                                Seri: {item.serial_number}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs font-semibold text-slate-700 mt-0.5">
                             {item.product_name}
                           </p>
-                          <span className="text-xs text-slate-500 font-medium mt-1 block">
-                            Tujuan: <span className="font-bold text-slate-800 capitalize">{item.to_stage}</span>
-                          </span>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
+                            <span>
+                              Tujuan: <strong className="text-slate-800 capitalize">{item.to_stage}</strong>
+                            </span>
+                            {item.tailor_name && (
+                              <span className="flex items-center space-x-1">
+                                <span>Penjahit:</span>
+                                <strong className="text-slate-800 bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
+                                  {item.tailor_name}
+                                </strong>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Clear Status Badge for Elderly Worker */}
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0 ml-2">
                           {isReceived ? (
                             <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black shadow-2xs">
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -591,7 +708,7 @@ export const PICSPXDashboard = () => {
                               <span>DI PERJALANAN</span>
                             </div>
                           )}
-                          <span className="text-[10px] text-slate-400 block mt-1">
+                          <span className="text-[10px] text-slate-400 block mt-1 font-medium">
                             {isReceived
                               ? `Diterima ${item.to_user_name || "Divisi Tujuan"}`
                               : "Menunggu Diterima"}
@@ -603,66 +720,12 @@ export const PICSPXDashboard = () => {
                 })}
               </div>
             ) : (
-              /* If no handovers sent yet, show active orders that worker can dispatch */
-              <div className="space-y-3">
-                {activeTaskList.map((order) => (
-                  <div
-                    key={order.id}
-                    className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono text-sm font-black text-slate-900">
-                          {order.order_number}
-                        </span>
-                        {order.serial_number && (
-                          <span className="px-2 py-0.5 rounded-md bg-slate-200 text-slate-800 text-[10px] font-bold">
-                            Seri: {order.serial_number}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                        {order.product_name}
-                      </p>
-                      <div className="flex items-center space-x-3 text-xs mt-1">
-                        <span className="font-bold text-orange-600">
-                          Target: {order.target_qty} PCS (Sedang Dikerjakan)
-                        </span>
-                        {order.tailor_name && (
-                          <span className="text-slate-500 font-medium">
-                            Penjahit: <strong className="text-slate-700">{order.tailor_name}</strong>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        warmAudio();
-                        if (currentRole === "qc") {
-                          setSelectedOrderForQc(order);
-                          setIsQcModalOpen(true);
-                        } else {
-                          setSelectedOrderToDispatch(order);
-                          setIsDispatchModalOpen(true);
-                        }
-                      }}
-                      className="py-2.5 px-4 bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-xs"
-                    >
-                      {currentRole === "qc" ? "Cek QC" : "Kirim"}
-                    </button>
-                  </div>
-                ))}
-
-                {activeTaskList.length === 0 && (
-                  <div className="p-6 text-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-400">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-sm font-bold text-slate-700">Semua Tugas Sudah Beres!</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Belum ada tugas baru. Istirahat atau tunggu pengiriman dari divisi sebelumnya.
-                    </p>
-                  </div>
-                )}
+              <div className="p-6 text-center rounded-2xl bg-slate-50 border border-slate-200 text-slate-400">
+                <CheckCircle2 className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-600">Belum Ada Pengiriman Outbound</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Serah terima yang Anda kirim ke stasiun berikutnya akan tercatat di sini.
+                </p>
               </div>
             )}
           </div>

@@ -91,18 +91,24 @@ export const QuickDispatchModal = ({ isOpen, onClose, onSuccess, currentRole, or
           <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {order.product_name}
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold text-slate-600 mt-1.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-semibold text-slate-600 mt-2">
             <div>
               Target: <span className="font-bold text-slate-900">{order.target_qty} PCS</span>
             </div>
-            {order.serial_number && (
-              <div>
-                Seri: <span className="font-bold text-slate-900">{order.serial_number}</span>
+            {order.tailor_name && (
+              <div className="flex items-center space-x-1">
+                <span>Penjahit:</span>
+                <span className="font-black text-orange-950 bg-white px-2 py-0.5 rounded-md border border-orange-300 shadow-2xs">
+                  {order.tailor_name}
+                </span>
               </div>
             )}
-            {order.tailor_name && (
-              <div>
-                Penjahit: <span className="font-bold text-slate-900">{order.tailor_name}</span>
+            {order.serial_number && (
+              <div className="flex items-center space-x-1">
+                <span>Seri:</span>
+                <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                  {order.serial_number}
+                </span>
               </div>
             )}
           </div>

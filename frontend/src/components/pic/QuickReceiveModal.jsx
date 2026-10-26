@@ -73,18 +73,24 @@ export const QuickReceiveModal = ({ isOpen, onClose, onSuccess, handover }) => {
             <div className="text-base font-semibold text-slate-700">
               {handover.product_name}
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 font-medium">
               <div>
                 Pengirim: <span className="font-bold text-slate-700">{handover.from_user_name || "PIC Pengirim"}</span>
               </div>
-              {handover.serial_number && (
-                <div>
-                  Seri: <span className="font-bold text-slate-700">{handover.serial_number}</span>
+              {handover.tailor_name && (
+                <div className="flex items-center space-x-1">
+                  <span>Penjahit:</span>
+                  <span className="font-black text-amber-950 bg-white px-2 py-0.5 rounded-md border border-amber-300 shadow-2xs">
+                    {handover.tailor_name}
+                  </span>
                 </div>
               )}
-              {handover.tailor_name && (
-                <div>
-                  Penjahit: <span className="font-bold text-slate-700">{handover.tailor_name}</span>
+              {handover.serial_number && (
+                <div className="flex items-center space-x-1">
+                  <span>Seri:</span>
+                  <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                    {handover.serial_number}
+                  </span>
                 </div>
               )}
             </div>

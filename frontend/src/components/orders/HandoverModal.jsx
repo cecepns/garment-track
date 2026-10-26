@@ -110,9 +110,45 @@ export const HandoverModal = ({ isOpen, onClose, onSuccess, initialOrder = null 
     }
   };
 
+  const selectedOrder = orders.find((o) => o.id === parseInt(formData.order_id, 10)) || initialOrder;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Kirim Serah Terima (Handover Transit)" maxWidth="max-w-lg">
       <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+        {selectedOrder && (
+          <div className="p-3.5 rounded-2xl bg-orange-50 border border-orange-200">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-base font-black text-orange-950">
+                {selectedOrder.order_number}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-orange-200 text-orange-900 text-xs font-black">
+                {selectedOrder.target_qty} PCS
+              </span>
+            </div>
+            <div className="text-sm font-bold text-slate-800 mt-1">
+              {selectedOrder.product_name}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-1.5">
+              {selectedOrder.tailor_name && (
+                <div className="flex items-center space-x-1">
+                  <span>Penjahit:</span>
+                  <span className="font-black text-orange-950 bg-white px-2 py-0.5 rounded-md border border-orange-200">
+                    {selectedOrder.tailor_name}
+                  </span>
+                </div>
+              )}
+              {selectedOrder.serial_number && (
+                <div className="flex items-center space-x-1">
+                  <span>Seri:</span>
+                  <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                    {selectedOrder.serial_number}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
             Pilih Pesanan SPK Produksi <span className="text-rose-500">*</span>
@@ -126,7 +162,7 @@ export const HandoverModal = ({ isOpen, onClose, onSuccess, initialOrder = null 
             <option value="">-- Pilih Pesanan Aktif --</option>
             {orders.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.order_number} - {o.product_name} ({o.target_qty} pcs) [Tahap: {o.current_stage.toUpperCase()}]
+                {o.order_number} - {o.product_name} ({o.target_qty} pcs) [Tahap: {o.current_stage.toUpperCase()}]{o.tailor_name ? ` [Penjahit: ${o.tailor_name}]` : ""}{o.serial_number ? ` [Seri: ${o.serial_number}]` : ""}
               </option>
             ))}
           </select>
@@ -160,11 +196,11 @@ export const HandoverModal = ({ isOpen, onClose, onSuccess, initialOrder = null 
               onChange={(e) => setFormData({ ...formData, to_stage: e.target.value })}
               className="mt-1 w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-emerald-700 font-bold focus:outline-none"
             >
-              <option value="sewing">SEWING</option>
-              <option value="finishing">FINISHING</option>
-              <option value="qc">QC</option>
-              <option value="packing">PACKING</option>
-              <option value="delivered">DELIVERED (KLIEN)</option>
+              <option value="sewing">SEWING (Jahit)</option>
+              <option value="finishing">FINISHING (Gosok/Kancing)</option>
+              <option value="qc">QC (Inspeksi)</option>
+              <option value="packing">PACKING (Kemas & Kirim)</option>
+              <option value="delivered">DELIVERED (Klien Selesai)</option>
             </select>
           </div>
         </div>

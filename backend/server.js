@@ -265,6 +265,8 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
         `SELECT 
           h.*,
           COALESCE(o.order_number, 'N/A') AS order_number,
+          COALESCE(o.serial_number, '') AS serial_number,
+          COALESCE(o.tailor_name, '') AS tailor_name,
           COALESCE(p.name, 'N/A') AS product_name,
           COALESCE(c.name, 'N/A') AS customer_name,
           COALESCE(fu.name, 'PIC Pengirim') AS from_user_name
@@ -273,9 +275,29 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
          LEFT JOIN products p ON o.product_id = p.id
          LEFT JOIN customers c ON o.customer_id = c.id
          LEFT JOIN users fu ON h.from_user_id = fu.id
-         WHERE h.to_stage = ? AND h.status = 'in_transit'
+         WHERE (h.to_stage = ? OR (h.to_stage = 'delivered' AND ? = 'packing')) AND h.status = 'in_transit'
          ORDER BY h.sent_at DESC`,
-        [userRole]
+        [userRole, userRole]
+      );
+      incomingHandovers = inRows;
+    } else if (["admin", "owner"].includes(userRole)) {
+      // Jika admin / owner membuka preview PIC, tampilkan semua antrean masuk in_transit
+      const [inRows] = await dbPool.query(
+        `SELECT 
+          h.*,
+          COALESCE(o.order_number, 'N/A') AS order_number,
+          COALESCE(o.serial_number, '') AS serial_number,
+          COALESCE(o.tailor_name, '') AS tailor_name,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(c.name, 'N/A') AS customer_name,
+          COALESCE(fu.name, 'PIC Pengirim') AS from_user_name
+         FROM handovers h
+         LEFT JOIN orders o ON h.order_id = o.id
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN customers c ON o.customer_id = c.id
+         LEFT JOIN users fu ON h.from_user_id = fu.id
+         WHERE h.status = 'in_transit'
+         ORDER BY h.sent_at DESC`
       );
       incomingHandovers = inRows;
     }
@@ -314,33 +336,59 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
     }
 
     // 3. Status Outbound (Serah terima yang dikirim dari stasiun ini - untuk cek sudah beres / diterima belum)
-    const [outRows] = await dbPool.query(
-      `SELECT 
-        h.*,
-        COALESCE(o.order_number, 'N/A') AS order_number,
-        COALESCE(p.name, 'N/A') AS product_name,
-        COALESCE(tu.name, 'Stasiun Penerima') AS to_user_name
-       FROM handovers h
-       LEFT JOIN orders o ON h.order_id = o.id
-       LEFT JOIN products p ON o.product_id = p.id
-       LEFT JOIN users tu ON h.to_user_id = tu.id
-       WHERE h.from_stage = ? OR h.from_user_id = ?
-       ORDER BY h.sent_at DESC
-       LIMIT 15`,
-      [userRole, userId]
-    );
+    let outRows = [];
+    if (["admin", "owner"].includes(userRole)) {
+      const [allOutRows] = await dbPool.query(
+        `SELECT 
+          h.*,
+          COALESCE(o.order_number, 'N/A') AS order_number,
+          COALESCE(o.serial_number, '') AS serial_number,
+          COALESCE(o.tailor_name, '') AS tailor_name,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(tu.name, 'Stasiun Penerima') AS to_user_name
+         FROM handovers h
+         LEFT JOIN orders o ON h.order_id = o.id
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN users tu ON h.to_user_id = tu.id
+         ORDER BY h.sent_at DESC
+         LIMIT 25`
+      );
+      outRows = allOutRows;
+    } else {
+      const [roleOutRows] = await dbPool.query(
+        `SELECT 
+          h.*,
+          COALESCE(o.order_number, 'N/A') AS order_number,
+          COALESCE(o.serial_number, '') AS serial_number,
+          COALESCE(o.tailor_name, '') AS tailor_name,
+          COALESCE(p.name, 'N/A') AS product_name,
+          COALESCE(tu.name, 'Stasiun Penerima') AS to_user_name
+         FROM handovers h
+         LEFT JOIN orders o ON h.order_id = o.id
+         LEFT JOIN products p ON o.product_id = p.id
+         LEFT JOIN users tu ON h.to_user_id = tu.id
+         WHERE h.from_stage = ? OR h.from_user_id = ?
+         ORDER BY h.sent_at DESC
+         LIMIT 25`,
+        [userRole, userId]
+      );
+      outRows = roleOutRows;
+    }
 
     // Hitung angka Inbound & Outbound ala SPX Express
     // Inbound: untuk cutting = tugas aktif baru; untuk lainnya = serah terima masuk
     const inboundCount = userRole === "cutting" ? activeTasks.length : incomingHandovers.length;
-    // Outbound: pesanan aktif siap dikirim atau serah terima yang sedang berjalan
-    const outboundCount = activeTasks.length;
+    // Outbound: jumlah pesanan aktif siap dikirim + serah terima outbound yang sedang di perjalanan
+    const inTransitCount = outRows.filter((h) => h.status === "in_transit").length;
+    const outboundCount = activeTasks.length + inTransitCount;
 
     return responseSuccess(res, {
       role: userRole,
       userName: req.user.name,
       inboundCount,
       outboundCount,
+      inTransitCount,
+      activeTasksCount: activeTasks.length,
       incomingHandovers,
       activeTasks,
       recentOutbounds: outRows,
@@ -366,9 +414,9 @@ app.get("/api/orders", authenticateToken, async (req, res) => {
     const params = [];
 
     if (search) {
-      whereConditions.push("(o.order_number LIKE ? OR c.name LIKE ? OR p.name LIKE ?)");
+      whereConditions.push("(o.order_number LIKE ? OR c.name LIKE ? OR p.name LIKE ? OR o.serial_number LIKE ? OR o.tailor_name LIKE ?)");
       const s = `%${search}%`;
-      params.push(s, s, s);
+      params.push(s, s, s, s, s);
     }
     if (stage) {
       whereConditions.push("o.current_stage = ?");
@@ -425,6 +473,9 @@ app.get("/api/orders", authenticateToken, async (req, res) => {
 app.get("/api/orders/scan/:number", authenticateToken, async (req, res) => {
   try {
     const { number } = req.params;
+    const cleanNumber = (number || "").trim();
+
+    // Cari berdasarkan order_number, serial_number, ID, ataupun handover_code
     const [orders] = await dbPool.query(
       `SELECT 
         o.*,
@@ -434,12 +485,20 @@ app.get("/api/orders/scan/:number", authenticateToken, async (req, res) => {
        FROM orders o
        LEFT JOIN customers c ON o.customer_id = c.id
        LEFT JOIN products p ON o.product_id = p.id
-       WHERE UPPER(o.order_number) = UPPER(?)`,
-      [number.trim()]
+       WHERE UPPER(o.order_number) = UPPER(?)
+          OR UPPER(COALESCE(o.serial_number, '')) = UPPER(?)
+          OR (o.id = ? AND ? REGEXP '^[0-9]+$')
+          OR EXISTS (
+            SELECT 1 FROM handovers h 
+            WHERE h.order_id = o.id AND UPPER(h.handover_code) = UPPER(?)
+          )
+       ORDER BY o.id DESC
+       LIMIT 1`,
+      [cleanNumber, cleanNumber, cleanNumber, cleanNumber, cleanNumber]
     );
 
     if (!orders || orders.length === 0) {
-      return responseError(res, `Pesanan dengan barcode/QR "${number}" tidak ditemukan`, 404);
+      return responseError(res, `Pesanan dengan barcode/kode "${cleanNumber}" tidak ditemukan`, 404);
     }
 
     const order = orders[0];
@@ -761,6 +820,8 @@ app.get("/api/handovers", authenticateToken, async (req, res) => {
       `SELECT 
         h.*,
         COALESCE(o.order_number, 'N/A') AS order_number,
+        COALESCE(o.serial_number, '') AS serial_number,
+        COALESCE(o.tailor_name, '') AS tailor_name,
         COALESCE(p.name, 'N/A') AS product_name,
         COALESCE(fu.name, 'N/A') AS from_user_name,
         COALESCE(tu.name, 'Semua PIC Tujuan') AS to_user_name
@@ -794,14 +855,16 @@ app.get("/api/handovers/incoming", authenticateToken, async (req, res) => {
     const params = [];
 
     if (["cutting", "sewing", "finishing", "qc", "packing"].includes(userRole)) {
-      conditions.push("h.to_stage = ?");
-      params.push(userRole);
+      conditions.push("(h.to_stage = ? OR (h.to_stage = 'delivered' AND ? = 'packing'))");
+      params.push(userRole, userRole);
     }
 
     const [rows] = await dbPool.query(
       `SELECT 
         h.*,
         COALESCE(o.order_number, 'N/A') AS order_number,
+        COALESCE(o.serial_number, '') AS serial_number,
+        COALESCE(o.tailor_name, '') AS tailor_name,
         COALESCE(p.name, 'N/A') AS product_name,
         COALESCE(fu.name, 'N/A') AS from_user_name
        FROM handovers h
@@ -903,8 +966,10 @@ app.post("/api/handovers/receive-all", authenticateToken, async (req, res) => {
       return responseError(res, "Divisi Anda tidak memiliki antrean barang masuk", 400);
     }
 
-    const whereStage = ["admin", "owner"].includes(userRole) ? "" : "AND h.to_stage = ?";
-    const queryParams = ["admin", "owner"].includes(userRole) ? [] : [userRole];
+    const whereStage = ["admin", "owner"].includes(userRole)
+      ? ""
+      : "AND (h.to_stage = ? OR (h.to_stage = 'delivered' AND ? = 'packing'))";
+    const queryParams = ["admin", "owner"].includes(userRole) ? [] : [userRole, userRole];
 
     const [pendingList] = await dbPool.query(
       `SELECT h.*, o.order_number 
@@ -1028,6 +1093,41 @@ app.put("/api/handovers/:id/receive", authenticateToken, async (req, res) => {
     const [[updatedHandover]] = await dbPool.query("SELECT * FROM handovers WHERE id = ?", [id]);
 
     return responseSuccess(res, updatedHandover, "Barang berhasil diterima dan diverifikasi!");
+  } catch (error) {
+    return responseError(res, error.message);
+  }
+});
+
+// Admin / Owner update handover (e.g. adjust to_stage or cancel mistake)
+app.put("/api/handovers/:id", authenticateToken, async (req, res) => {
+  try {
+    if (!["admin", "owner"].includes(req.user.role)) {
+      return responseError(res, "Hanya Admin dan Owner yang dapat mengubah data serah terima", 403);
+    }
+    const id = parseInt(req.params.id, 10);
+    const { to_stage, status, qty_sent, notes } = req.body;
+
+    const [[existing]] = await dbPool.query("SELECT * FROM handovers WHERE id = ?", [id]);
+    if (!existing) return responseError(res, "Serah terima tidak ditemukan", 404);
+
+    await dbPool.query(
+      `UPDATE handovers SET 
+        to_stage = ?,
+        status = ?,
+        qty_sent = ?,
+        notes = ?
+       WHERE id = ?`,
+      [
+        to_stage || existing.to_stage,
+        status || existing.status,
+        qty_sent !== undefined ? parseInt(qty_sent, 10) : existing.qty_sent,
+        notes !== undefined ? notes : existing.notes,
+        id,
+      ]
+    );
+
+    const [[updated]] = await dbPool.query("SELECT * FROM handovers WHERE id = ?", [id]);
+    return responseSuccess(res, updated, "Serah terima berhasil diperbarui");
   } catch (error) {
     return responseError(res, error.message);
   }

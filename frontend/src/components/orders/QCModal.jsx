@@ -104,9 +104,45 @@ export const QCModal = ({ isOpen, onClose, onSuccess, initialOrder = null }) => 
     }
   };
 
+  const selectedOrder = orders.find((o) => o.id === parseInt(formData.order_id, 10)) || initialOrder;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Inspeksi Kualitas (QC & Rework)" maxWidth="max-w-lg">
       <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+        {selectedOrder && (
+          <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-200">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-base font-black text-indigo-900">
+                {selectedOrder.order_number}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-200 text-indigo-900 text-xs font-black">
+                {selectedOrder.target_qty} PCS
+              </span>
+            </div>
+            <div className="text-sm font-bold text-slate-800 mt-1">
+              {selectedOrder.product_name}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 mt-1.5">
+              {selectedOrder.tailor_name && (
+                <div className="flex items-center space-x-1">
+                  <span>Penjahit:</span>
+                  <span className="font-black text-indigo-900 bg-white px-2 py-0.5 rounded-md border border-indigo-200">
+                    {selectedOrder.tailor_name}
+                  </span>
+                </div>
+              )}
+              {selectedOrder.serial_number && (
+                <div className="flex items-center space-x-1">
+                  <span>Seri:</span>
+                  <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                    {selectedOrder.serial_number}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1">
             Pesanan SPK <span className="text-rose-500">*</span>
@@ -120,7 +156,7 @@ export const QCModal = ({ isOpen, onClose, onSuccess, initialOrder = null }) => 
             <option value="">-- Pilih Pesanan --</option>
             {orders.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.order_number} - {o.product_name} ({o.target_qty} pcs)
+                {o.order_number} - {o.product_name} ({o.target_qty} pcs){o.tailor_name ? ` [Penjahit: ${o.tailor_name}]` : ""}{o.serial_number ? ` [Seri: ${o.serial_number}]` : ""}
               </option>
             ))}
           </select>
