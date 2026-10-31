@@ -302,7 +302,7 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
       incomingHandovers = inRows;
     }
 
-    // 2. Tugas Aktif di Stasiun Kerja Saat Ini
+    // 2. Tugas Aktif di Stasiun Kerja Saat Ini (Kecualikan order yang sudah dikirim / sedang in_transit)
     let activeTasks = [];
     if (["cutting", "sewing", "finishing", "qc", "packing"].includes(userRole)) {
       const [orderRows] = await dbPool.query(
@@ -313,7 +313,12 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
          FROM orders o
          LEFT JOIN products p ON o.product_id = p.id
          LEFT JOIN customers c ON o.customer_id = c.id
-         WHERE o.current_stage = ? AND o.status = 'in_progress'
+         WHERE o.current_stage = ? 
+           AND o.status = 'in_progress'
+           AND NOT EXISTS (
+             SELECT 1 FROM handovers h 
+             WHERE h.order_id = o.id AND h.status = 'in_transit'
+           )
          ORDER BY o.deadline ASC, o.id DESC`,
         [userRole]
       );
@@ -329,6 +334,10 @@ app.get("/api/pic/dashboard-summary", authenticateToken, async (req, res) => {
          LEFT JOIN products p ON o.product_id = p.id
          LEFT JOIN customers c ON o.customer_id = c.id
          WHERE o.status = 'in_progress'
+           AND NOT EXISTS (
+             SELECT 1 FROM handovers h 
+             WHERE h.order_id = o.id AND h.status = 'in_transit'
+           )
          ORDER BY o.deadline ASC, o.id DESC
          LIMIT 20`
       );
